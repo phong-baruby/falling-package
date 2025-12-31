@@ -1,6 +1,6 @@
 # 🎉 Falling Animation
 
-A lightweight, customizable falling objects animation library for the web. Create beautiful falling effects like snow, leaves, confetti, and more!
+A lightweight, customizable falling objects animation library for the web. Create beautiful falling effects like snow, leaves, confetti, and realistic fireworks!
 
 [![npm version](https://img.shields.io/npm/v/falling-animation.svg)](https://www.npmjs.com/package/falling-animation)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/falling-animation)](https://bundlephobia.com/package/falling-animation)
@@ -8,9 +8,10 @@ A lightweight, customizable falling objects animation library for the web. Creat
 
 ## ✨ Features
 
-- 🪶 **Lightweight** - No dependencies, < 10KB gzipped
+- 🪶 **Lightweight** - No dependencies, < 15KB gzipped
 - 🎨 **Customizable** - Full control over speed, size, animation, and more
 - 🎭 **8 Animation Types** - fall, swing, rotate, flutter, spiral, tumble, zigzag, float
+- 🎆 **Fireworks** - Realistic rockets shooting up and exploding into colorful particles
 - 📱 **Responsive** - Automatically adapts to container size
 - 🖼️ **Multiple Object Types** - Emojis, images, or custom HTML
 - ⚡ **Performant** - Uses requestAnimationFrame and CSS transforms
@@ -227,20 +228,157 @@ new FallingAnimation({
 Full TypeScript support with exported types:
 
 ```typescript
-import { 
-  FallingAnimation,
-  FallingAnimationOptions,
-  FallingObject,
-  AnimationType 
-} from 'falling-animation';
+// For falling effects only
+import { FallingAnimation, FallingAnimationOptions } from 'falling-animation';
 
-const options: FallingAnimationOptions = {
+const falling = new FallingAnimation({
   objects: [{ type: 'emoji', content: '🌟' }],
-  animation: 'rotate' as AnimationType
-};
-
-const falling = new FallingAnimation(options);
+  animation: 'rotate'
+});
 ```
+
+```typescript
+// For fireworks only
+import { Fireworks, FireworksOptions } from 'falling-animation';
+
+const fw = new Fireworks({
+  launchRate: 2,
+  particlesPerExplosion: 60
+});
+```
+
+```typescript
+// Both together
+import { FallingAnimation, Fireworks } from 'falling-animation';
+```
+
+---
+
+## 🎆 Fireworks
+
+Create realistic firework effects with rockets shooting up and exploding into colorful particles!
+
+### Quick Start
+
+```javascript
+import { Fireworks } from 'falling-animation';
+
+const fireworks = new Fireworks();
+```
+
+### Fireworks Options
+
+```typescript
+interface FireworksOptions {
+  // Container element or selector (default: document.body)
+  container?: HTMLElement | string;
+  
+  // Colors for fireworks (default: 10 festive colors)
+  colors?: string[];
+  
+  // Rockets per second (default: 1)
+  launchRate?: number;
+  
+  // Particles per explosion (default: 50)
+  particlesPerExplosion?: number;
+  
+  // Rocket speed range (default: { min: 8, max: 15 })
+  rocketSpeed?: { min: number; max: number };
+  
+  // Explosion particle speed (default: { min: 2, max: 8 })
+  explosionSpeed?: { min: number; max: number };
+  
+  // Particle size in px (default: { min: 2, max: 6 })
+  particleSize?: { min: number; max: number };
+  
+  // Particle lifetime in ms (default: { min: 1000, max: 2000 })
+  particleLifetime?: { min: number; max: number };
+  
+  // Gravity strength (default: 0.1)
+  gravity?: number;
+  
+  // Auto start (default: true)
+  autoStart?: boolean;
+  
+  // Z-index (default: 9999)
+  zIndex?: number;
+}
+```
+
+### Fireworks Methods
+
+```javascript
+const fw = new Fireworks();
+
+// Control methods
+fw.start();     // Start continuous fireworks
+fw.stop();      // Stop launching new rockets
+fw.clear();     // Clear all particles
+fw.destroy();   // Clean up completely
+
+// Manual launch
+fw.launch();    // Launch single firework
+fw.burst(5);    // Launch 5 fireworks at once
+
+// Update options dynamically
+fw.setOptions({
+  launchRate: 2,
+  particlesPerExplosion: 80
+});
+
+// Get state
+fw.getParticleCount();
+fw.getIsRunning();
+```
+
+### Fireworks Examples
+
+#### Basic Fireworks Show
+
+```javascript
+import { Fireworks } from 'falling-animation';
+
+new Fireworks({
+  launchRate: 2,
+  particlesPerExplosion: 60
+});
+```
+
+#### Custom Colors
+
+```javascript
+new Fireworks({
+  colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00'],
+  launchRate: 1.5
+});
+```
+
+#### New Year Celebration
+
+```javascript
+const fw = new Fireworks({
+  launchRate: 3,
+  particlesPerExplosion: 100,
+  gravity: 0.15,
+  particleLifetime: { min: 1500, max: 2500 }
+});
+
+// Launch a burst at midnight!
+fw.burst(10);
+```
+
+#### Bounded Container
+
+```javascript
+new Fireworks({
+  container: '#celebration-box',
+  launchRate: 0.5,
+  particlesPerExplosion: 30,
+  zIndex: 100
+});
+```
+
+---
 
 ## 📄 License
 

@@ -335,6 +335,27 @@
     </div>
   </div>
 
+  <div class="presets" style="border-color: #ff6b6b;">
+    <h2 style="color: #ff6b6b;">🎆 Fireworks</h2>
+    <p style="color: #888; margin-bottom: 15px;">Real firework effects with rockets and explosions!</p>
+    <div class="control-group">
+      <div class="control-item">
+        <label>Launch Rate: <span id="fwRateValue" class="range-value">1/s</span></label>
+        <input type="range" id="fwRate" min="0.5" max="5" value="1" step="0.5">
+      </div>
+      <div class="control-item">
+        <label>Particles/Explosion: <span id="fwParticlesValue" class="range-value">50</span></label>
+        <input type="range" id="fwParticles" min="20" max="100" value="50">
+      </div>
+    </div>
+    <div class="buttons">
+      <button class="btn btn-primary" id="btnFwStart" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);">🎆
+        Start Fireworks</button>
+      <button class="btn btn-secondary" id="btnFwBurst">💥 Burst (5x)</button>
+      <button class="btn btn-danger" id="btnFwStop">⏹️ Stop</button>
+    </div>
+  </div>
+
   <div class="demo-container" id="demoContainer">
     <div class="demo-container-label">Bounded Container Demo</div>
   </div>
@@ -355,7 +376,66 @@
   </div>
 
   <script type="module">
-    import { FallingAnimation } from './dist/falling-animation.esm.js';
+    import { FallingAnimation, Fireworks } from './dist/falling-animation.esm.js';
+
+    // Fireworks instance
+    let fireworks = null;
+
+    // Fireworks controls
+    const fwRateSlider = document.getElementById('fwRate');
+    const fwParticlesSlider = document.getElementById('fwParticles');
+    const fwRateValue = document.getElementById('fwRateValue');
+    const fwParticlesValue = document.getElementById('fwParticlesValue');
+    const btnFwStart = document.getElementById('btnFwStart');
+    const btnFwBurst = document.getElementById('btnFwBurst');
+    const btnFwStop = document.getElementById('btnFwStop');
+
+    // Fireworks handlers
+    fwRateSlider.addEventListener('input', () => {
+      fwRateValue.textContent = fwRateSlider.value + '/s';
+      if (fireworks) {
+        fireworks.setOptions({ launchRate: parseFloat(fwRateSlider.value) });
+      }
+    });
+
+    fwParticlesSlider.addEventListener('input', () => {
+      fwParticlesValue.textContent = fwParticlesSlider.value;
+      if (fireworks) {
+        fireworks.setOptions({ particlesPerExplosion: parseInt(fwParticlesSlider.value) });
+      }
+    });
+
+    btnFwStart.addEventListener('click', () => {
+      if (!fireworks) {
+        fireworks = new Fireworks({
+          launchRate: parseFloat(fwRateSlider.value),
+          particlesPerExplosion: parseInt(fwParticlesSlider.value)
+        });
+      } else if (!fireworks.getIsRunning()) {
+        fireworks.start();
+      }
+      btnFwStart.textContent = '🎆 Running...';
+    });
+
+    btnFwBurst.addEventListener('click', () => {
+      if (!fireworks) {
+        fireworks = new Fireworks({
+          launchRate: 0,
+          particlesPerExplosion: parseInt(fwParticlesSlider.value),
+          autoStart: false
+        });
+        fireworks.start();
+      }
+      fireworks.burst(5);
+    });
+
+    btnFwStop.addEventListener('click', () => {
+      if (fireworks) {
+        fireworks.stop();
+        fireworks.clear();
+        btnFwStart.textContent = '🎆 Start Fireworks';
+      }
+    });
 
     // Presets configuration
     const presets = {

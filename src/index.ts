@@ -6,8 +6,9 @@
  * @license MIT
  */
 
-// Main class
+// Main classes
 export { FallingAnimation } from './FallingAnimation';
+export { Fireworks } from './Fireworks';
 
 // Types
 export type {
@@ -17,6 +18,8 @@ export type {
     AnimationType,
     RangeValue
 } from './types';
+
+export type { FireworksOptions } from './Fireworks';
 
 // Animations (for advanced usage)
 export { animations, getAnimation } from './animations';

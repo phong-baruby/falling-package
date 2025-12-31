@@ -13,7 +13,7 @@
   "scripts": {
     "build": "rollup -c",
     "dev": "rollup -c -w",
-    "demo": "npx serve .",
+    "demo": "npx serve . -l 3000",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
