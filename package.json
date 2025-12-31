@@ -1,0 +1,46 @@
+{
+  "name": "falling-animation",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A lightweight, customizable falling objects animation library for web",
+  "main": "dist/falling-animation.cjs.js",
+  "module": "dist/falling-animation.esm.js",
+  "browser": "dist/falling-animation.umd.js",
+  "types": "dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "demo": "npx serve .",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "falling",
+    "animation",
+    "particles",
+    "effects",
+    "snowfall",
+    "confetti",
+    "leaf",
+    "emoji"
+  ],
+  "author": "phong-baruby",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phong-baruby/falling-package"
+  },
+  "bugs": {
+    "url": "https://github.com/phong-baruby/falling-package/issues"
+  },
+  "homepage": "https://github.com/phong-baruby/falling-package#readme",
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^11.1.6",
+    "rollup": "^4.9.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3"
+  }
+}

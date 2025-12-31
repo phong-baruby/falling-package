@@ -1,0 +1,11 @@
+# Ignore everything
+*
+
+# Keep dist folder
+!dist/
+!dist/**
+
+# Keep package files
+!package.json
+!README.md
+!LICENSE
