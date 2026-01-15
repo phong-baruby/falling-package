@@ -276,16 +276,16 @@ interface FireworksOptions {
   // Colors for fireworks (default: 10 festive colors)
   colors?: string[];
   
-  // Rockets per second (default: 1)
+  // Rockets per second (default: 0.5)
   launchRate?: number;
   
   // Particles per explosion (default: 50)
   particlesPerExplosion?: number;
   
-  // Rocket speed range (default: { min: 8, max: 15 })
+  // Rocket speed range (default: { min: 7, max: 12 })
   rocketSpeed?: { min: number; max: number };
   
-  // Explosion particle speed (default: { min: 2, max: 8 })
+  // Explosion particle speed (default: { min: 1, max: 6 })
   explosionSpeed?: { min: number; max: number };
   
   // Particle size in px (default: { min: 2, max: 6 })
@@ -300,6 +300,11 @@ interface FireworksOptions {
   // Auto start (default: true)
   autoStart?: boolean;
   
+  // Explosion pattern (default: 'random')
+  // Values: 'random' | 'circular' | 'double' | 'embers' | 'heart' | 'star' | 'ring' | 'palm' | 'willow' | 'chrysanthemum'
+  // Can also be an array: ['double', 'heart']
+  explosionPattern?: ExplosionPattern | ExplosionPattern[];
+
   // Z-index (default: 9999)
   zIndex?: number;
 }
@@ -333,49 +338,93 @@ fw.getIsRunning();
 
 ### Fireworks Examples
 
-#### Basic Fireworks Show
+### Explosion Patterns
+
+You can choose from 9 different explosion patterns or use a random mix!
+
+- `random`: Randomly selects a pattern for each explosion (default)
+- `circular`: Standard circular explosion
+- `double`: **Spectacular 2-stage explosion** (particles explode again!)
+- `waterfall`: **Waterfall effect** (gentle up, heavy rain down)
+- `embers`: Slow-falling, micro-particles (Tàn Lửa)
+- `heart`: ❤️ Heart shape
+- `star`: ⭐ Star shape
+- `ring`: 💍 Ring shape
+- `palm`: 🌴 Palm tree effect
+- `willow`: 🌳 Trailing willow effect
+- `chrysanthemum`: 🌼 Dense spherical burst
+
+### ✨ Recommended Presets
+
+Here are some beautiful configurations to get you started:
+
+#### 1. The Grand Finale (Spectacular Mix)
+Perfect for big celebrations. Uses double explosions and a mix of random patterns.
 
 ```javascript
-import { Fireworks } from 'falling-animation';
-
-new Fireworks({
+const fireworks = new Fireworks({
   launchRate: 2,
-  particlesPerExplosion: 60
+  particlesPerExplosion: 50,
+  explosionPattern: ['double', 'random'], // Mix of single and double explosions
+  rocketSpeed: { min: 12, max: 18 },
+  explosionSpeed: { min: 3, max: 9 }
 });
 ```
 
-#### Custom Colors
+#### 2. Romantic Hearts
+A gentle stream of heart-shaped fireworks, great for weddings or Valentine's.
 
 ```javascript
 new Fireworks({
-  colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00'],
-  launchRate: 1.5
+  launchRate: 1,
+  particlesPerExplosion: 40,
+  explosionPattern: 'heart',
+  colors: ['#ff0000', '#ff69b4', '#ffffff'], // Red, Pink, White
+  gravity: 0.05, // Slower fall
+  rocketSpeed: { min: 10, max: 12 }
 });
 ```
 
-#### New Year Celebration
+#### 3. Gentle Embers (Tàn Lửa)
+Soft, floating micro-particles that drift slowly. Very atmospheric.
+
+```javascript
+new Fireworks({
+  launchRate: 3,
+  explosionPattern: 'embers',
+  rocketSpeed: { min: 8, max: 12 },
+  particleLifetime: { min: 2000, max: 4000 },
+  gravity: 0.05
+});
+```
+
+#### 4. New Year Countdown (Intense)
+High density, fast-paced action!
 
 ```javascript
 const fw = new Fireworks({
-  launchRate: 3,
-  particlesPerExplosion: 100,
-  gravity: 0.15,
-  particleLifetime: { min: 1500, max: 2500 }
+  launchRate: 4,               // Fast launch
+  particlesPerExplosion: 60,   // Dense explosions
+  explosionPattern: 'random',
+  explosionSpeed: { min: 5, max: 10 }
 });
 
-// Launch a burst at midnight!
-fw.burst(10);
+// Launch a massive burst manually when the timer hits zero!
+// fw.burst(15);
 ```
 
-#### Bounded Container
+#### 5. Single Shot (Manual Control)
+Want to trigger fireworks manually (e.g., on button click)?
 
 ```javascript
-new Fireworks({
-  container: '#celebration-box',
-  launchRate: 0.5,
-  particlesPerExplosion: 30,
-  zIndex: 100
+const fw = new Fireworks({
+  autoStart: false  // 1. Disable auto-start
 });
+
+// 2. Trigger manually whenever you want (e.g. onClick)
+fw.launch(); // Launches 1 rocket
+// or
+fw.burst(5); // Launches 5 rockets at once
 ```
 
 ---
@@ -387,3 +436,5 @@ MIT © [phongdh](https://github.com/phongdh)
 ## 🙏 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+> I'm currently figuring out how to implement the **Waterfall** or **Weeping Willow** effect properly. If you have experience with these physics/visuals, I'd love your help! Please feel free to open a Pull Request.

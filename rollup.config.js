@@ -7,26 +7,26 @@ export default {
         {
             file: 'dist/falling-animation.cjs',
             format: 'cjs',
-            sourcemap: true,
+            sourcemap: false,
             exports: 'named'
         },
         {
             file: 'dist/falling-animation.esm.js',
             format: 'esm',
-            sourcemap: true
+            sourcemap: false
         },
         {
             file: 'dist/falling-animation.umd.js',
             format: 'umd',
             name: 'FallingAnimation',
-            sourcemap: true,
+            sourcemap: false,
             exports: 'named'
         },
         {
             file: 'dist/falling-animation.umd.min.js',
             format: 'umd',
             name: 'FallingAnimation',
-            sourcemap: true,
+            sourcemap: false,
             exports: 'named',
             plugins: [terser()]
         }

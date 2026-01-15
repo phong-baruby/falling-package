@@ -1,6 +1,6 @@
 {
   "name": "falling-animation",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "type": "module",
   "description": "A lightweight, customizable falling objects animation library for web",
   "main": "dist/falling-animation.cjs",
@@ -19,7 +19,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "rollup -c",
+    "build": "rm -rf dist && rollup -c",
     "dev": "rollup -c -w",
     "demo": "npx serve . -l 3000",
     "prepublishOnly": "npm run build"

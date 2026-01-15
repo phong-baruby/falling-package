@@ -108,8 +108,19 @@ export class CanvasRenderer {
     /**
      * Clear the entire canvas
      */
-    clear(): void {
-        this.ctx.clearRect(0, 0, this.width, this.height);
+    /**
+     * Clear the entire canvas
+     * @param trail If true, fades out existing content instead of hard clear
+     */
+    clear(trail: boolean = false): void {
+        if (trail) {
+            // "Trail trick": fill with semi-transparent black to create trails
+            // Adjust opacity for longer/shorter trails (current: very long trails)
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+        } else {
+            this.ctx.clearRect(0, 0, this.width, this.height);
+        }
     }
 
     /**

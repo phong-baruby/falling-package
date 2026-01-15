@@ -30,6 +30,8 @@ interface FireworkParticle {
     targetY?: number;
     /** Explosion stage (0 = primary, 1 = secondary, etc.) */
     stage: number;
+    /** Whether this particle triggers a secondary explosion */
+    hasSecondaryExplosion?: boolean;
 }
 
 /** Available explosion patterns */
@@ -43,6 +45,7 @@ export type ExplosionPattern =
     | 'chrysanthemum' // Dense spherical burst
     | 'embers'     // Slow-falling micro embers (Tàn Lửa Trôi Nhẹ)
     | 'double'     // Double explosion (nổ 2 lần, lần 2 nhỏ hơn)
+    | 'waterfall'  // Waterfall effect (gentle rise, rain down)
     | 'random';    // Random pattern each time
 
 /** Fireworks configuration options */
@@ -103,10 +106,10 @@ const DEFAULT_COLORS = [
 
 const DEFAULTS: Required<Omit<FireworksOptions, 'container'>> = {
     colors: DEFAULT_COLORS,
-    launchRate: 1,
+    launchRate: 0.5,
     particlesPerExplosion: 50,
-    rocketSpeed: { min: 8, max: 15 },
-    explosionSpeed: { min: 2, max: 8 },
+    rocketSpeed: { min: 7, max: 12 },
+    explosionSpeed: { min: 1, max: 6 },
     particleSize: { min: 2, max: 6 },
     particleLifetime: { min: 1000, max: 2000 },
     gravity: 0.1,
@@ -232,7 +235,7 @@ export class Fireworks {
             // Pick random from array
             pattern = patternOption[Math.floor(Math.random() * patternOption.length)];
         } else if (patternOption === 'random') {
-            const patterns: ExplosionPattern[] = ['circular', 'ring', 'heart', 'star', 'willow', 'palm', 'chrysanthemum', 'embers', 'double'];
+            const patterns: ExplosionPattern[] = ['circular', 'ring', 'heart', 'star', 'willow', 'palm', 'chrysanthemum', 'embers', 'double', 'waterfall'];
             pattern = patterns[Math.floor(Math.random() * patterns.length)];
         } else {
             pattern = patternOption;
@@ -269,6 +272,8 @@ export class Fireworks {
                 return this.createEmbersExplosion(rocket, count, color);
             case 'double':
                 return this.createDoubleExplosion(rocket, count, color);
+            case 'waterfall':
+                return this.createWaterfallExplosion(rocket, count, color);
             case 'circular':
             default:
                 return this.createCircularExplosion(rocket, count, color);
@@ -434,7 +439,49 @@ export class Fireworks {
                 maxAge: randomFromRange(this.options.particleLifetime),
                 phase: 'explosion',
                 gravity: this.options.gravity,
-                stage: 1  // Mark as stage 1 - will trigger secondary explosion
+                stage: 1,
+                hasSecondaryExplosion: true, // Explicitly enable secondary explosion
+            };
+
+            particles.push(particle);
+        }
+        return particles;
+    }
+
+    /** Waterfall - Gentle explosion up, then heavy fall like water */
+    private createWaterfallExplosion(rocket: FireworkParticle, count: number, color: string): FireworkParticle[] {
+        const particles: FireworkParticle[] = [];
+        // Waterfall needs VERY high density to look like streams
+        const waterfallCount = Math.floor(count * 2.5);
+
+        // Force golden/waterfall colors significantly
+        const isGold = Math.random() < 0.8;
+        const waterfallColor = isGold ? '#ffd700' : color;
+
+        for (let i = 0; i < waterfallCount; i++) {
+            // Semicircle upwards (0 to PI, negative for canvas Y)
+            // But we want a slight spread, mostly up
+            const angle = Math.PI + Math.random() * Math.PI; // Full arc upwards (-PI to 0 effectively)
+
+            // Low initial speed - "nổ nhẹ nhàng"
+            const speed = randomFromRange(this.options.explosionSpeed) * 0.4;
+
+            const particle: FireworkParticle = {
+                id: generateId(),
+                x: rocket.x,
+                y: rocket.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed * 0.5, // Flatten the vertical explosion a bit
+                size: randomFromRange(this.options.particleSize),
+                opacity: 1,
+                color: this.getVariantColor(color),
+                age: 0,
+                // Long lifetime to fall down screen
+                maxAge: randomFromRange(this.options.particleLifetime) * 2.5,
+                phase: 'explosion',
+                // High gravity for waterfall effect
+                gravity: 0.25,
+                stage: 0
             };
 
             particles.push(particle);
@@ -573,8 +620,8 @@ export class Fireworks {
                 particle.vx *= drag;
                 particle.vy *= drag;
 
-                // Double pattern secondary explosion: trigger at 50% lifetime for stage 1 particles
-                if (particle.stage === 1 && lifeProgress >= 0.5 && particle.targetY !== -1) {
+                // Double pattern secondary explosion: trigger at 50% lifetime if flag is set
+                if (particle.hasSecondaryExplosion && lifeProgress >= 0.5 && particle.targetY !== -1) {
                     // Mark as already triggered secondary explosion
                     particle.targetY = -1;
                     particlesToExplode.push(particle);
