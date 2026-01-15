@@ -1,21 +1,21 @@
 /**
- * Fireworks Animation - Creates realistic firework effects
+ * Fireworks Animation - Creates realistic firework effects (Canvas-based)
  * 
  * Features:
  * - Rockets shooting up from bottom
  * - Explosions spreading particles in all directions (360°)
  * - Gravity effect on particles
  * - Fade out over time
- * - Trail effects
+ * - Glow effects
  */
 
 import { RangeValue } from './types';
 import { randomRange, randomFromRange, generateId, throttle, isBrowser } from './utils';
+import { CanvasRenderer, RenderFireworkParticle } from './CanvasRenderer';
 
 /** Firework particle state */
 interface FireworkParticle {
     id: number;
-    element: HTMLElement;
     x: number;
     y: number;
     vx: number;
@@ -27,7 +27,23 @@ interface FireworkParticle {
     maxAge: number;
     phase: 'rocket' | 'explosion';
     gravity: number;
+    targetY?: number;
+    /** Explosion stage (0 = primary, 1 = secondary, etc.) */
+    stage: number;
 }
+
+/** Available explosion patterns */
+export type ExplosionPattern =
+    | 'circular'   // Standard circular explosion
+    | 'ring'       // Ring/donut shape
+    | 'heart'      // Heart shape
+    | 'star'       // Star burst pattern
+    | 'willow'     // Trailing willow effect (gravity-heavy)
+    | 'palm'       // Palm tree effect
+    | 'chrysanthemum' // Dense spherical burst
+    | 'embers'     // Slow-falling micro embers (Tàn Lửa Trôi Nhẹ)
+    | 'double'     // Double explosion (nổ 2 lần, lần 2 nhỏ hơn)
+    | 'random';    // Random pattern each time
 
 /** Fireworks configuration options */
 export interface FireworksOptions {
@@ -61,6 +77,9 @@ export interface FireworksOptions {
     /** Enable trail effect (default: true) */
     trail?: boolean;
 
+    /** Explosion pattern type - single pattern or array for random selection (default: 'circular') */
+    explosionPattern?: ExplosionPattern | ExplosionPattern[];
+
     /** Auto start animation (default: true) */
     autoStart?: boolean;
 
@@ -82,7 +101,6 @@ const DEFAULT_COLORS = [
     '#ffd700', // Gold
 ];
 
-/** Default configuration */
 const DEFAULTS: Required<Omit<FireworksOptions, 'container'>> = {
     colors: DEFAULT_COLORS,
     launchRate: 1,
@@ -93,6 +111,7 @@ const DEFAULTS: Required<Omit<FireworksOptions, 'container'>> = {
     particleLifetime: { min: 1000, max: 2000 },
     gravity: 0.1,
     trail: true,
+    explosionPattern: 'circular',
     autoStart: true,
     zIndex: 9999
 };
@@ -100,7 +119,7 @@ const DEFAULTS: Required<Omit<FireworksOptions, 'container'>> = {
 export class Fireworks {
     private options: Required<FireworksOptions> & { container: HTMLElement };
     private particles: FireworkParticle[] = [];
-    private wrapper: HTMLElement | null = null;
+    private renderer: CanvasRenderer | null = null;
     private isRunning = false;
     private animationId: number | null = null;
     private lastLaunchTime = 0;
@@ -137,11 +156,13 @@ export class Fireworks {
             particleLifetime: options.particleLifetime ?? DEFAULTS.particleLifetime,
             gravity: options.gravity ?? DEFAULTS.gravity,
             trail: options.trail ?? DEFAULTS.trail,
+            explosionPattern: options.explosionPattern ?? DEFAULTS.explosionPattern,
             autoStart: options.autoStart ?? DEFAULTS.autoStart,
             zIndex: options.zIndex ?? DEFAULTS.zIndex
         };
 
-        this.createWrapper();
+        // Create canvas renderer
+        this.renderer = new CanvasRenderer(container, this.options.zIndex);
         this.setupResizeHandler();
 
         if (this.options.autoStart) {
@@ -149,69 +170,26 @@ export class Fireworks {
         }
     }
 
-    private createWrapper(): void {
-        this.wrapper = document.createElement('div');
-        this.wrapper.className = 'fireworks-wrapper';
-
-        Object.assign(this.wrapper.style, {
-            position: this.options.container === document.body ? 'fixed' : 'absolute',
-            top: '0',
-            left: '0',
-            width: '100%',
-            height: '100%',
-            overflow: 'hidden',
-            pointerEvents: 'none',
-            zIndex: String(this.options.zIndex)
-        });
-
-        if (this.options.container !== document.body) {
-            const containerPosition = getComputedStyle(this.options.container).position;
-            if (containerPosition === 'static') {
-                this.options.container.style.position = 'relative';
-            }
-        }
-
-        this.options.container.appendChild(this.wrapper);
-    }
-
     private setupResizeHandler(): void {
         this.resizeHandler = throttle(() => {
-            // Handle resize if needed
+            if (this.renderer) {
+                this.renderer.resize();
+            }
         }, 200);
         window.addEventListener('resize', this.resizeHandler);
     }
 
     private getContainerSize(): { width: number; height: number } {
-        return {
-            width: this.options.container.clientWidth,
-            height: this.options.container.clientHeight
-        };
-    }
-
-    private createParticleElement(particle: FireworkParticle): HTMLElement {
-        const element = document.createElement('div');
-        element.className = 'firework-particle';
-
-        Object.assign(element.style, {
-            position: 'absolute',
-            left: '0',
-            top: '0',
-            width: `${particle.size}px`,
-            height: `${particle.size}px`,
-            backgroundColor: particle.color,
-            borderRadius: '50%',
-            boxShadow: `0 0 ${particle.size * 2}px ${particle.color}`,
-            opacity: String(particle.opacity),
-            pointerEvents: 'none',
-            willChange: 'transform, opacity',
-            transform: `translate3d(${particle.x}px, ${particle.y}px, 0)`
-        });
-
-        return element;
+        if (this.renderer) {
+            return this.renderer.getSize();
+        }
+        return { width: 0, height: 0 };
     }
 
     private launchRocket(): void {
         const { width, height } = this.getContainerSize();
+        if (width === 0 || height === 0) return;
+
         const color = this.options.colors[Math.floor(Math.random() * this.options.colors.length)];
 
         // Random explosion height: 10% to 90% from top of screen
@@ -220,70 +198,317 @@ export class Fireworks {
 
         // Calculate time based on distance and speed
         const rocketSpeed = randomFromRange(this.options.rocketSpeed);
-        const travelTime = distanceToTravel / (rocketSpeed * 0.1); // approximate time in ms
+        const travelTime = distanceToTravel / (rocketSpeed * 0.1);
 
         const particle: FireworkParticle = {
             id: generateId(),
-            element: null as unknown as HTMLElement,
             x: randomRange(width * 0.1, width * 0.9),
-            y: height + 10, // Start slightly below viewport
+            y: height + 10,
             vx: randomRange(-0.5, 0.5),
             vy: -rocketSpeed,
             size: 4,
             opacity: 1,
             color,
             age: 0,
-            maxAge: Math.min(travelTime, 3000), // Cap at 3 seconds
+            maxAge: Math.min(travelTime, 3000),
             phase: 'rocket',
             gravity: 0,
-            targetY // Store target explosion height
-        } as FireworkParticle & { targetY: number };
+            targetY,
+            stage: 0
+        };
 
-        particle.element = this.createParticleElement(particle);
         this.particles.push(particle);
-
-        if (this.wrapper) {
-            this.wrapper.appendChild(particle.element);
-        }
     }
 
     private explode(rocket: FireworkParticle): void {
         const particleCount = this.options.particlesPerExplosion;
         const color = rocket.color;
 
-        // Create explosion particles spreading in all directions
-        for (let i = 0; i < particleCount; i++) {
-            // Spread evenly in 360 degrees
-            const angle = (i / particleCount) * Math.PI * 2 + randomRange(-0.1, 0.1);
+        // Get pattern (resolve 'random' or array to single pattern)
+        let pattern: ExplosionPattern;
+        const patternOption = this.options.explosionPattern;
+
+        if (Array.isArray(patternOption)) {
+            // Pick random from array
+            pattern = patternOption[Math.floor(Math.random() * patternOption.length)];
+        } else if (patternOption === 'random') {
+            const patterns: ExplosionPattern[] = ['circular', 'ring', 'heart', 'star', 'willow', 'palm', 'chrysanthemum', 'embers', 'double'];
+            pattern = patterns[Math.floor(Math.random() * patterns.length)];
+        } else {
+            pattern = patternOption;
+        }
+
+        // Generate particles based on pattern
+        const particles = this.generatePatternParticles(pattern, rocket, particleCount, color);
+
+        for (const particle of particles) {
+            this.particles.push(particle);
+        }
+    }
+
+    private generatePatternParticles(
+        pattern: ExplosionPattern,
+        rocket: FireworkParticle,
+        count: number,
+        color: string
+    ): FireworkParticle[] {
+        switch (pattern) {
+            case 'ring':
+                return this.createRingExplosion(rocket, count, color);
+            case 'heart':
+                return this.createHeartExplosion(rocket, count, color);
+            case 'star':
+                return this.createStarExplosion(rocket, count, color);
+            case 'willow':
+                return this.createWillowExplosion(rocket, count, color);
+            case 'palm':
+                return this.createPalmExplosion(rocket, count, color);
+            case 'chrysanthemum':
+                return this.createChrysanthemumExplosion(rocket, count, color);
+            case 'embers':
+                return this.createEmbersExplosion(rocket, count, color);
+            case 'double':
+                return this.createDoubleExplosion(rocket, count, color);
+            case 'circular':
+            default:
+                return this.createCircularExplosion(rocket, count, color);
+        }
+    }
+
+    /** Standard circular explosion - even spread */
+    private createCircularExplosion(rocket: FireworkParticle, count: number, color: string): FireworkParticle[] {
+        const particles: FireworkParticle[] = [];
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2 + randomRange(-0.1, 0.1);
             const speed = randomFromRange(this.options.explosionSpeed);
+            particles.push(this.createExplosionParticle(rocket, color, angle, speed));
+        }
+        return particles;
+    }
+
+    /** Ring/donut shape - particles at similar radius */
+    private createRingExplosion(rocket: FireworkParticle, count: number, color: string): FireworkParticle[] {
+        const particles: FireworkParticle[] = [];
+        const baseSpeed = (this.options.explosionSpeed.min + this.options.explosionSpeed.max) / 2;
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2;
+            const speed = baseSpeed + randomRange(-0.5, 0.5);
+            particles.push(this.createExplosionParticle(rocket, color, angle, speed, 0.05)); // Low gravity
+        }
+        return particles;
+    }
+
+    /** Heart shape explosion */
+    private createHeartExplosion(rocket: FireworkParticle, count: number, color: string): FireworkParticle[] {
+        const particles: FireworkParticle[] = [];
+        for (let i = 0; i < count; i++) {
+            const t = (i / count) * Math.PI * 2;
+            // Heart parametric equation
+            const heartX = 16 * Math.pow(Math.sin(t), 3);
+            const heartY = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+            const angle = Math.atan2(heartY, heartX);
+            const speed = Math.sqrt(heartX * heartX + heartY * heartY) / 16 * randomFromRange(this.options.explosionSpeed);
+            particles.push(this.createExplosionParticle(rocket, color, angle, speed * 0.8, 0.08));
+        }
+        return particles;
+    }
+
+    /** Star burst - concentrated beams */
+    private createStarExplosion(rocket: FireworkParticle, count: number, color: string): FireworkParticle[] {
+        const particles: FireworkParticle[] = [];
+        const points = 5; // 5-pointed star
+        for (let i = 0; i < count; i++) {
+            const starAngle = (Math.floor(i / (count / points)) / points) * Math.PI * 2;
+            const spreadAngle = starAngle + randomRange(-0.15, 0.15);
+            const speed = randomFromRange(this.options.explosionSpeed) * (0.8 + Math.random() * 0.4);
+            particles.push(this.createExplosionParticle(rocket, color, spreadAngle, speed));
+        }
+        return particles;
+    }
+
+    /** Willow - heavy gravity, long trails */
+    private createWillowExplosion(rocket: FireworkParticle, count: number, color: string): FireworkParticle[] {
+        const particles: FireworkParticle[] = [];
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2 + randomRange(-0.1, 0.1);
+            const speed = randomFromRange(this.options.explosionSpeed) * 0.6;
+            const p = this.createExplosionParticle(rocket, '#ffd700', angle, speed, 0.25); // Gold, high gravity
+            p.maxAge *= 1.5; // Longer life
+            particles.push(p);
+        }
+        return particles;
+    }
+
+    /** Palm tree - upward bias */
+    private createPalmExplosion(rocket: FireworkParticle, count: number, color: string): FireworkParticle[] {
+        const particles: FireworkParticle[] = [];
+        for (let i = 0; i < count; i++) {
+            // Bias upward (angles from -60 to 240 degrees, avoiding straight down)
+            const angle = randomRange(-Math.PI * 0.8, Math.PI * 0.8) - Math.PI / 2;
+            const speed = randomFromRange(this.options.explosionSpeed) * (0.7 + Math.random() * 0.6);
+            const p = this.createExplosionParticle(rocket, color, angle, speed, 0.18);
+            p.maxAge *= 1.2;
+            particles.push(p);
+        }
+        return particles;
+    }
+
+    /** Chrysanthemum - dense spherical burst */
+    private createChrysanthemumExplosion(rocket: FireworkParticle, count: number, color: string): FireworkParticle[] {
+        const particles: FireworkParticle[] = [];
+        const layers = 3;
+        for (let layer = 0; layer < layers; layer++) {
+            const layerCount = Math.floor(count / layers);
+            const baseSpeed = this.options.explosionSpeed.min +
+                (this.options.explosionSpeed.max - this.options.explosionSpeed.min) * (layer / layers);
+            for (let i = 0; i < layerCount; i++) {
+                const angle = (i / layerCount) * Math.PI * 2 + (layer * 0.3);
+                const speed = baseSpeed + randomRange(-0.5, 0.5);
+                particles.push(this.createExplosionParticle(rocket, color, angle, speed, 0.08));
+            }
+        }
+        return particles;
+    }
+
+    /** Embers - Slow-falling micro particles (Tàn Lửa Trôi Nhẹ)
+     * Very small particles (0.5-1.5px) with low gravity and high drag
+     */
+    private createEmbersExplosion(rocket: FireworkParticle, count: number, color: string): FireworkParticle[] {
+        const particles: FireworkParticle[] = [];
+        // More particles for embers effect (1.5x normal count)
+        const emberCount = Math.floor(count * 1.5);
+
+        for (let i = 0; i < emberCount; i++) {
+            const angle = (i / emberCount) * Math.PI * 2 + randomRange(-0.3, 0.3);
+            // Very slow initial speed
+            const speed = randomFromRange(this.options.explosionSpeed) * 0.3;
 
             const particle: FireworkParticle = {
                 id: generateId(),
-                element: null as unknown as HTMLElement,
+                x: rocket.x + randomRange(-5, 5), // Slight position randomness
+                y: rocket.y + randomRange(-5, 5),
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                // Very small particles (0.5 - 1.5 px)
+                size: randomRange(0.5, 1.5),
+                opacity: 1,
+                // Warm ember colors
+                color: this.getEmberColor(color),
+                age: 0,
+                // Long lifetime for slow fade
+                maxAge: randomFromRange(this.options.particleLifetime) * 2,
+                phase: 'explosion',
+                // Very low gravity - particles float
+                gravity: 0.02,
+                stage: rocket.stage + 1
+            };
+
+            particles.push(particle);
+        }
+        return particles;
+    }
+
+    /** Double explosion - first explosion creates particles that explode again
+     * Secondary particles are 2-3x smaller than primary
+     */
+    private createDoubleExplosion(rocket: FireworkParticle, count: number, color: string): FireworkParticle[] {
+        const particles: FireworkParticle[] = [];
+        // First explosion: create fewer, larger particles that will explode again
+        const primaryCount = Math.floor(count * 0.6);
+
+        for (let i = 0; i < primaryCount; i++) {
+            const angle = (i / primaryCount) * Math.PI * 2 + randomRange(-0.1, 0.1);
+            const speed = randomFromRange(this.options.explosionSpeed) * 0.8;
+
+            const particle: FireworkParticle = {
+                id: generateId(),
                 x: rocket.x,
                 y: rocket.y,
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed,
+                // Normal size for primary particles
                 size: randomFromRange(this.options.particleSize),
                 opacity: 1,
                 color: this.getVariantColor(color),
                 age: 0,
                 maxAge: randomFromRange(this.options.particleLifetime),
                 phase: 'explosion',
-                gravity: this.options.gravity
+                gravity: this.options.gravity,
+                stage: 1  // Mark as stage 1 - will trigger secondary explosion
             };
 
-            particle.element = this.createParticleElement(particle);
-            this.particles.push(particle);
+            particles.push(particle);
+        }
+        return particles;
+    }
 
-            if (this.wrapper) {
-                this.wrapper.appendChild(particle.element);
-            }
+    /** Create secondary explosion particles (called when stage 1 particles reach 50% lifetime)
+     * These particles are 2-3x smaller than the originals
+     */
+    private explodeSecondary(parent: FireworkParticle): void {
+        const secondaryCount = Math.floor(this.options.particlesPerExplosion * 0.3); // 30% of normal
+
+        for (let i = 0; i < secondaryCount; i++) {
+            const angle = (i / secondaryCount) * Math.PI * 2 + randomRange(-0.2, 0.2);
+            const speed = randomFromRange(this.options.explosionSpeed) * 0.5;
+
+            const particle: FireworkParticle = {
+                id: generateId(),
+                x: parent.x,
+                y: parent.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                // Secondary particles are 2-3x smaller!
+                size: Math.max(1, randomFromRange(this.options.particleSize) / randomRange(2, 3)),
+                opacity: 0.9,
+                color: this.getVariantColor(parent.color),
+                age: 0,
+                maxAge: randomFromRange(this.options.particleLifetime) * 0.7, // Shorter lifetime
+                phase: 'explosion',
+                gravity: this.options.gravity * 0.5, // Less gravity
+                stage: 2  // Stage 2 - no more explosions
+            };
+
+            this.particles.push(particle);
         }
     }
 
+    /** Get warm ember color variant */
+    private getEmberColor(baseColor: string): string {
+        const emberColors = ['#ffaa00', '#ff6600', '#ff4400', '#ffcc00', '#ff8800', '#ffffff'];
+        if (Math.random() < 0.7) {
+            // 70% chance of ember colors
+            return emberColors[Math.floor(Math.random() * emberColors.length)];
+        }
+        return baseColor;
+    }
+
+    /** Helper to create a single explosion particle */
+    private createExplosionParticle(
+        rocket: FireworkParticle,
+        color: string,
+        angle: number,
+        speed: number,
+        gravity?: number
+    ): FireworkParticle {
+        return {
+            id: generateId(),
+            x: rocket.x,
+            y: rocket.y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            size: randomFromRange(this.options.particleSize),
+            opacity: 1,
+            color: this.getVariantColor(color),
+            age: 0,
+            maxAge: randomFromRange(this.options.particleLifetime),
+            phase: 'explosion',
+            gravity: gravity ?? this.options.gravity,
+            stage: rocket.stage + 1
+        };
+    }
+
     private getVariantColor(baseColor: string): string {
-        // Sometimes return white or a lighter variant for sparkle effect
         if (Math.random() < 0.2) {
             return '#ffffff';
         }
@@ -297,12 +522,11 @@ export class Fireworks {
         const index = this.particles.indexOf(particle);
         if (index > -1) {
             this.particles.splice(index, 1);
-            particle.element.remove();
         }
     }
 
     private animate = (currentTime: number): void => {
-        if (!this.isRunning) return;
+        if (!this.isRunning || !this.renderer) return;
 
         if (this.lastFrameTime === 0) {
             this.lastFrameTime = currentTime;
@@ -326,47 +550,51 @@ export class Fireworks {
             particle.age += deltaTime;
 
             if (particle.phase === 'rocket') {
-                // Update rocket
                 particle.x += particle.vx * deltaTime * 0.1;
                 particle.y += particle.vy * deltaTime * 0.1;
-                particle.vy += 0.01 * deltaTime; // Slow down slightly as it rises
+                particle.vy += 0.01 * deltaTime;
 
-                // Check if ready to explode (reached target height or max age)
-                const targetY = (particle as unknown as { targetY: number }).targetY ?? 0;
+                const targetY = particle.targetY ?? 0;
                 if (particle.y <= targetY || particle.age >= particle.maxAge || particle.vy >= 0) {
                     particlesToExplode.push(particle);
                 }
 
-                // Trail effect - dim the rocket slightly
                 particle.opacity = Math.max(0.5, 1 - (particle.age / particle.maxAge) * 0.3);
             } else {
-                // Update explosion particle
                 particle.x += particle.vx * deltaTime * 0.1;
                 particle.y += particle.vy * deltaTime * 0.1;
-                particle.vy += particle.gravity * deltaTime * 0.01; // Apply gravity
+                particle.vy += particle.gravity * deltaTime * 0.01;
 
-                // Fade out
                 const lifeProgress = particle.age / particle.maxAge;
                 particle.opacity = Math.max(0, 1 - lifeProgress);
 
-                // Slow down
-                particle.vx *= 0.99;
-                particle.vy *= 0.99;
+                // Higher drag for small particles (embers effect)
+                const drag = particle.size < 2 ? 0.96 : 0.99;
+                particle.vx *= drag;
+                particle.vy *= drag;
 
-                // Check if dead
+                // Double pattern secondary explosion: trigger at 50% lifetime for stage 1 particles
+                if (particle.stage === 1 && lifeProgress >= 0.5 && particle.targetY !== -1) {
+                    // Mark as already triggered secondary explosion
+                    particle.targetY = -1;
+                    particlesToExplode.push(particle);
+                }
+
                 if (particle.age >= particle.maxAge) {
                     particlesToRemove.push(particle);
                 }
             }
-
-            // Update DOM
-            particle.element.style.transform = `translate3d(${particle.x}px, ${particle.y}px, 0)`;
-            particle.element.style.opacity = String(particle.opacity);
         }
 
         // Handle explosions
         for (const rocket of particlesToExplode) {
-            this.explode(rocket);
+            if (rocket.stage === 1) {
+                // Stage 1 particle: trigger secondary explosion with smaller particles
+                this.explodeSecondary(rocket);
+            } else {
+                // Rocket: normal explosion
+                this.explode(rocket);
+            }
             particlesToRemove.push(rocket);
         }
 
@@ -374,6 +602,19 @@ export class Fireworks {
         for (const particle of particlesToRemove) {
             this.removeParticle(particle);
         }
+
+        // Render all particles
+        this.renderer.clear();
+
+        const renderData: RenderFireworkParticle[] = this.particles.map(p => ({
+            x: p.x,
+            y: p.y,
+            size: p.size,
+            opacity: p.opacity,
+            color: p.color
+        }));
+
+        this.renderer.drawFireworkParticles(renderData);
 
         this.animationId = requestAnimationFrame(this.animate);
     };
@@ -398,10 +639,10 @@ export class Fireworks {
 
     /** Clear all particles but keep running */
     clear(): void {
-        for (const particle of this.particles) {
-            particle.element.remove();
-        }
         this.particles = [];
+        if (this.renderer) {
+            this.renderer.clear();
+        }
     }
 
     /** Launch a single firework manually */
@@ -426,6 +667,7 @@ export class Fireworks {
         if (newOptions.particleSize) this.options.particleSize = newOptions.particleSize;
         if (newOptions.particleLifetime) this.options.particleLifetime = newOptions.particleLifetime;
         if (newOptions.gravity !== undefined) this.options.gravity = newOptions.gravity;
+        if (newOptions.explosionPattern) this.options.explosionPattern = newOptions.explosionPattern;
     }
 
     /** Get particle count */
@@ -443,9 +685,9 @@ export class Fireworks {
         this.stop();
         this.clear();
 
-        if (this.wrapper) {
-            this.wrapper.remove();
-            this.wrapper = null;
+        if (this.renderer) {
+            this.renderer.destroy();
+            this.renderer = null;
         }
 
         if (this.resizeHandler) {

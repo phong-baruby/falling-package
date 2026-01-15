@@ -1,10 +1,11 @@
 /**
- * Particle class - manages individual falling objects
+ * Particle class - manages individual falling objects (Canvas-based, no DOM)
  */
 
 import {
     ParticleState,
     FallingObject,
+    FallingObjectType,
     AnimationType,
     ResolvedOptions
 } from './types';
@@ -27,7 +28,8 @@ const SPEED_MULTIPLIER = 0.04; // 40 px/s per unit, divided by 1000 for ms
 
 export class Particle implements ParticleState {
     id: number;
-    element: HTMLElement;
+    content: string;
+    objectType: FallingObjectType;
     x: number;
     y: number;
     vx: number;
@@ -43,28 +45,29 @@ export class Particle implements ParticleState {
 
     private containerWidth: number;
     private containerHeight: number;
-    private options: ResolvedOptions;
 
-    constructor(options: ResolvedOptions) {
-        this.options = options;
+    constructor(options: ResolvedOptions, containerWidth: number, containerHeight: number) {
         this.id = generateId();
         this.age = 0;
         this.phase = Math.random() * Math.PI * 2;
         this.data = {};
 
-        // Get container dimensions
-        this.containerWidth = options.container.clientWidth;
-        this.containerHeight = options.container.clientHeight;
+        // Store container dimensions
+        this.containerWidth = containerWidth;
+        this.containerHeight = containerHeight;
 
         // Pick random object
         const object = weightedRandomPick(options.objects);
+
+        // Store content and type for rendering
+        this.content = object.src || object.content || '❄️';
+        this.objectType = object.type;
 
         // Initialize position at top with random x
         this.x = randomRange(-50, this.containerWidth + 50);
         this.y = -50;
 
         // Initialize velocity (apply speed multiplier for intuitive units)
-        // speed=1 → ~40px/s (1cm/s), speed=0.1 → ~4px/s (1mm/s)
         this.vy = randomFromRange(options.speed) * SPEED_MULTIPLIER;
         this.vx = options.wind * SPEED_MULTIPLIER * randomRange(0.5, 1.5);
 
@@ -81,9 +84,6 @@ export class Particle implements ParticleState {
 
         // Initialize animation-specific data
         this.initAnimationData();
-
-        // Create DOM element
-        this.element = this.createElement(object);
     }
 
     /**
@@ -98,60 +98,6 @@ export class Particle implements ParticleState {
     }
 
     /**
-     * Create DOM element for the particle
-     */
-    private createElement(object: FallingObject): HTMLElement {
-        const element = document.createElement('div');
-        element.className = 'falling-particle';
-        element.setAttribute('data-particle-id', String(this.id));
-
-        // Set content based on type
-        switch (object.type) {
-            case 'emoji':
-                element.textContent = object.content ?? '❄️';
-                element.style.fontSize = `${this.size}px`;
-                element.style.lineHeight = '1';
-                break;
-
-            case 'image':
-                const img = document.createElement('img');
-                img.src = object.src ?? object.content ?? '';
-                img.alt = '';
-                img.style.width = `${this.size}px`;
-                img.style.height = `${this.size}px`;
-                img.style.objectFit = 'contain';
-                img.draggable = false;
-                element.appendChild(img);
-                break;
-
-            case 'html':
-                element.innerHTML = object.content ?? '';
-                break;
-        }
-
-        // Apply base styles
-        Object.assign(element.style, {
-            position: 'absolute',
-            pointerEvents: 'none',
-            userSelect: 'none',
-            willChange: 'transform, opacity',
-            opacity: String(this.opacity),
-            left: '0',
-            top: '0',
-            transform: this.getTransform()
-        });
-
-        return element;
-    }
-
-    /**
-     * Get CSS transform string
-     */
-    private getTransform(): string {
-        return `translate3d(${this.x}px, ${this.y}px, 0) rotate(${this.rotation}deg)`;
-    }
-
-    /**
      * Update particle state
      */
     update(deltaTime: number, elapsed: number): void {
@@ -160,9 +106,6 @@ export class Particle implements ParticleState {
         // Apply animation
         const animationFn = getAnimation(this.animation);
         animationFn(this, deltaTime, elapsed);
-
-        // Update DOM
-        this.element.style.transform = this.getTransform();
     }
 
     /**
@@ -182,12 +125,5 @@ export class Particle implements ParticleState {
     updateContainerSize(width: number, height: number): void {
         this.containerWidth = width;
         this.containerHeight = height;
-    }
-
-    /**
-     * Remove particle from DOM
-     */
-    destroy(): void {
-        this.element.remove();
     }
 }

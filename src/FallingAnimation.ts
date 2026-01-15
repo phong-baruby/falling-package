@@ -1,5 +1,5 @@
 /**
- * FallingAnimation - Main class for creating falling object animations
+ * FallingAnimation - Main class for creating falling object animations (Canvas-based)
  */
 
 import {
@@ -9,6 +9,7 @@ import {
 } from './types';
 import { Particle } from './Particle';
 import { resolveContainer, throttle } from './utils';
+import { CanvasRenderer, RenderParticle } from './CanvasRenderer';
 
 /** Default configuration values */
 const DEFAULTS: Omit<ResolvedOptions, 'container' | 'objects'> = {
@@ -27,7 +28,7 @@ const DEFAULTS: Omit<ResolvedOptions, 'container' | 'objects'> = {
 export class FallingAnimation {
     private options: ResolvedOptions;
     private particles: Particle[] = [];
-    private wrapper: HTMLElement | null = null;
+    private renderer: CanvasRenderer | null = null;
     private isRunning = false;
     private isPaused = false;
     private animationId: number | null = null;
@@ -45,8 +46,11 @@ export class FallingAnimation {
         // Resolve options with defaults
         this.options = this.resolveOptions(options);
 
-        // Create wrapper element
-        this.createWrapper();
+        // Create canvas renderer
+        this.renderer = new CanvasRenderer(this.options.container, this.options.zIndex);
+
+        // Preload images if any
+        this.preloadImages();
 
         // Setup resize handler if responsive
         if (this.options.responsive) {
@@ -56,6 +60,26 @@ export class FallingAnimation {
         // Auto start if enabled
         if (this.options.autoStart) {
             this.start();
+        }
+    }
+
+    /**
+     * Preload any image objects
+     */
+    private async preloadImages(): Promise<void> {
+        if (!this.renderer) return;
+
+        for (const obj of this.options.objects) {
+            if (obj.type === 'image') {
+                const src = obj.src || obj.content;
+                if (src) {
+                    try {
+                        await this.renderer.preloadImage(src);
+                    } catch (e) {
+                        console.warn(`[falling-animation] Failed to preload image: ${src}`);
+                    }
+                }
+            }
         }
     }
 
@@ -92,46 +116,17 @@ export class FallingAnimation {
     }
 
     /**
-     * Create wrapper element for particles
-     */
-    private createWrapper(): void {
-        this.wrapper = document.createElement('div');
-        this.wrapper.className = 'falling-animation-wrapper';
-
-        // Apply styles
-        Object.assign(this.wrapper.style, {
-            position: this.options.container === document.body ? 'fixed' : 'absolute',
-            top: '0',
-            left: '0',
-            width: '100%',
-            height: '100%',
-            overflow: 'hidden',
-            pointerEvents: 'none',
-            zIndex: String(this.options.zIndex)
-        });
-
-        // Ensure container has position for absolute wrapper
-        if (this.options.container !== document.body) {
-            const containerPosition = getComputedStyle(this.options.container).position;
-            if (containerPosition === 'static') {
-                this.options.container.style.position = 'relative';
-            }
-        }
-
-        this.options.container.appendChild(this.wrapper);
-    }
-
-    /**
      * Setup resize handler for responsive behavior
      */
     private setupResizeHandler(): void {
         this.resizeHandler = throttle(() => {
-            const width = this.options.container.clientWidth;
-            const height = this.options.container.clientHeight;
-
-            this.particles.forEach(particle => {
-                particle.updateContainerSize(width, height);
-            });
+            if (this.renderer) {
+                this.renderer.resize();
+                const { width, height } = this.renderer.getSize();
+                this.particles.forEach(particle => {
+                    particle.updateContainerSize(width, height);
+                });
+            }
         }, 200);
 
         window.addEventListener('resize', this.resizeHandler);
@@ -145,12 +140,11 @@ export class FallingAnimation {
             return;
         }
 
-        const particle = new Particle(this.options);
-        this.particles.push(particle);
+        if (!this.renderer) return;
 
-        if (this.wrapper) {
-            this.wrapper.appendChild(particle.element);
-        }
+        const { width, height } = this.renderer.getSize();
+        const particle = new Particle(this.options, width, height);
+        this.particles.push(particle);
     }
 
     /**
@@ -160,7 +154,6 @@ export class FallingAnimation {
         const index = this.particles.indexOf(particle);
         if (index > -1) {
             this.particles.splice(index, 1);
-            particle.destroy();
         }
     }
 
@@ -168,7 +161,7 @@ export class FallingAnimation {
      * Main animation loop
      */
     private animate = (currentTime: number): void => {
-        if (!this.isRunning) return;
+        if (!this.isRunning || !this.renderer) return;
 
         // Calculate delta time
         if (this.lastFrameTime === 0) {
@@ -201,6 +194,21 @@ export class FallingAnimation {
         // Remove out-of-bounds particles
         particlesToRemove.forEach(p => this.removeParticle(p));
 
+        // Clear and render all particles
+        this.renderer.clear();
+
+        const renderData: RenderParticle[] = this.particles.map(p => ({
+            x: p.x,
+            y: p.y,
+            rotation: p.rotation,
+            size: p.size,
+            opacity: p.opacity,
+            content: p.content,
+            type: p.objectType === 'image' ? 'image' : 'emoji'
+        }));
+
+        this.renderer.drawParticles(renderData);
+
         // Continue animation loop
         this.animationId = requestAnimationFrame(this.animate);
     };
@@ -232,8 +240,12 @@ export class FallingAnimation {
         }
 
         // Clear all particles
-        this.particles.forEach(p => p.destroy());
         this.particles = [];
+
+        // Clear canvas
+        if (this.renderer) {
+            this.renderer.clear();
+        }
     }
 
     /**
@@ -294,6 +306,7 @@ export class FallingAnimation {
         }
         if (newOptions.objects) {
             this.options.objects = newOptions.objects;
+            this.preloadImages(); // Preload any new images
         }
     }
 
@@ -324,10 +337,10 @@ export class FallingAnimation {
     destroy(): void {
         this.stop();
 
-        // Remove wrapper
-        if (this.wrapper) {
-            this.wrapper.remove();
-            this.wrapper = null;
+        // Destroy renderer
+        if (this.renderer) {
+            this.renderer.destroy();
+            this.renderer = null;
         }
 
         // Remove resize handler

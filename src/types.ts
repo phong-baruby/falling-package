@@ -45,8 +45,10 @@ export type AnimationFunction = (
 export interface ParticleState {
     /** Unique identifier */
     id: number;
-    /** DOM element reference */
-    element: HTMLElement;
+    /** Content to render (emoji character or image URL) */
+    content: string;
+    /** Object type for rendering */
+    objectType: FallingObjectType;
     /** Current X position */
     x: number;
     /** Current Y position */

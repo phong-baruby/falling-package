@@ -19,7 +19,7 @@ export type {
     RangeValue
 } from './types';
 
-export type { FireworksOptions } from './Fireworks';
+export type { FireworksOptions, ExplosionPattern } from './Fireworks';
 
 // Animations (for advanced usage)
 export { animations, getAnimation } from './animations';

@@ -340,12 +340,27 @@
     <p style="color: #888; margin-bottom: 15px;">Real firework effects with rockets and explosions!</p>
     <div class="control-group">
       <div class="control-item">
-        <label>Launch Rate: <span id="fwRateValue" class="range-value">1/s</span></label>
-        <input type="range" id="fwRate" min="0.5" max="5" value="1" step="0.5">
+        <label>Explosion Pattern</label>
+        <select id="fwPattern">
+          <option value="random" selected>🎲 Random Mix</option>
+          <option value="circular">⭕ Circular</option>
+          <option value="ring">💍 Ring</option>
+          <option value="heart">❤️ Heart</option>
+          <option value="star">⭐ Star</option>
+          <option value="willow">🌳 Willow</option>
+          <option value="palm">🌴 Palm</option>
+          <option value="chrysanthemum">🌼 Chrysanthemum</option>
+          <option value="embers">✨ Embers (Tàn Lửa)</option>
+          <option value="double">🎇 Double (Nổ 2 Lần)</option>
+        </select>
       </div>
       <div class="control-item">
-        <label>Particles/Explosion: <span id="fwParticlesValue" class="range-value">50</span></label>
-        <input type="range" id="fwParticles" min="20" max="100" value="50">
+        <label>Launch Rate: <span id="fwRateValue" class="range-value">1/s</span></label>
+        <input type="range" id="fwRate" min="0.5" max="3" value="1" step="0.5">
+      </div>
+      <div class="control-item">
+        <label>Particles/Explosion: <span id="fwParticlesValue" class="range-value">40</span></label>
+        <input type="range" id="fwParticles" min="20" max="80" value="40">
       </div>
     </div>
     <div class="buttons">
@@ -354,10 +369,6 @@
       <button class="btn btn-secondary" id="btnFwBurst">💥 Burst (5x)</button>
       <button class="btn btn-danger" id="btnFwStop">⏹️ Stop</button>
     </div>
-  </div>
-
-  <div class="demo-container" id="demoContainer">
-    <div class="demo-container-label">Bounded Container Demo</div>
   </div>
 
   <div class="stats">
@@ -384,6 +395,7 @@
     // Fireworks controls
     const fwRateSlider = document.getElementById('fwRate');
     const fwParticlesSlider = document.getElementById('fwParticles');
+    const fwPatternSelect = document.getElementById('fwPattern');
     const fwRateValue = document.getElementById('fwRateValue');
     const fwParticlesValue = document.getElementById('fwParticlesValue');
     const btnFwStart = document.getElementById('btnFwStart');
@@ -405,11 +417,18 @@
       }
     });
 
+    fwPatternSelect.addEventListener('change', () => {
+      if (fireworks) {
+        fireworks.setOptions({ explosionPattern: fwPatternSelect.value });
+      }
+    });
+
     btnFwStart.addEventListener('click', () => {
       if (!fireworks) {
         fireworks = new Fireworks({
           launchRate: parseFloat(fwRateSlider.value),
-          particlesPerExplosion: parseInt(fwParticlesSlider.value)
+          particlesPerExplosion: parseInt(fwParticlesSlider.value),
+          explosionPattern: fwPatternSelect.value
         });
       } else if (!fireworks.getIsRunning()) {
         fireworks.start();
@@ -528,7 +547,6 @@
 
     // Initialize main animation (fullscreen)
     let mainAnimation = null;
-    let containerAnimation = null;
 
     // DOM elements
     const animationType = document.getElementById('animationType');
@@ -706,25 +724,10 @@
       });
     });
 
-    // Bounded container demo
-    containerAnimation = new FallingAnimation({
-      container: '#demoContainer',
-      objects: [
-        { type: 'emoji', content: '⭐' },
-        { type: 'emoji', content: '🌟' }
-      ],
-      animation: 'float',
-      speed: { min: 1, max: 2 },
-      size: { min: 15, max: 25 },
-      spawnRate: 2,
-      maxParticles: 20,
-      zIndex: 100
-    });
-
     // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
       if (mainAnimation) mainAnimation.destroy();
-      if (containerAnimation) containerAnimation.destroy();
+      if (fireworks) fireworks.destroy();
     });
   </script>
 </body>
