@@ -5,7 +5,7 @@ export default {
     input: 'src/index.ts',
     output: [
         {
-            file: 'dist/falling-animation.cjs.js',
+            file: 'dist/falling-animation.cjs',
             format: 'cjs',
             sourcemap: true,
             exports: 'named'

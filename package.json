@@ -1,12 +1,20 @@
 {
   "name": "falling-animation",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "A lightweight, customizable falling objects animation library for web",
-  "main": "dist/falling-animation.cjs.js",
+  "main": "dist/falling-animation.cjs",
   "module": "dist/falling-animation.esm.js",
   "browser": "dist/falling-animation.umd.js",
   "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/falling-animation.esm.js",
+      "require": "./dist/falling-animation.cjs",
+      "default": "./dist/falling-animation.esm.js"
+    }
+  },
   "files": [
     "dist"
   ],

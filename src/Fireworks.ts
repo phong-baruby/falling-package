@@ -10,7 +10,7 @@
  */
 
 import { RangeValue } from './types';
-import { randomRange, randomFromRange, generateId, throttle } from './utils';
+import { randomRange, randomFromRange, generateId, throttle, isBrowser } from './utils';
 
 /** Firework particle state */
 interface FireworkParticle {
@@ -108,6 +108,14 @@ export class Fireworks {
     private resizeHandler: (() => void) | null = null;
 
     constructor(options: FireworksOptions = {}) {
+        // Check for browser environment
+        if (!isBrowser()) {
+            throw new Error(
+                '[falling-animation] Fireworks requires a browser environment. ' +
+                'If using SSR (Next.js, Nuxt, etc.), make sure to only initialize on the client side.'
+            );
+        }
+
         // Resolve container
         let container: HTMLElement;
         if (!options.container) {

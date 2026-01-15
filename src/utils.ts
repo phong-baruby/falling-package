@@ -79,9 +79,24 @@ export function generateId(): number {
 }
 
 /**
+ * Check if code is running in browser environment
+ */
+export function isBrowser(): boolean {
+    return typeof window !== 'undefined' && typeof document !== 'undefined';
+}
+
+/**
  * Resolve container from element or selector
+ * Throws an error if called in non-browser environment
  */
 export function resolveContainer(container: HTMLElement | string | undefined): HTMLElement {
+    if (!isBrowser()) {
+        throw new Error(
+            '[falling-animation] This library requires a browser environment. ' +
+            'If using SSR (Next.js, Nuxt, etc.), make sure to only initialize on the client side.'
+        );
+    }
+
     if (!container) {
         return document.body;
     }
