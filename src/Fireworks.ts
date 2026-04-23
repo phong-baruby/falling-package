@@ -10,7 +10,7 @@
  */
 
 import { RangeValue } from './types';
-import { randomRange, randomFromRange, generateId, throttle, isBrowser } from './utils';
+import { randomRange, randomFromRange, generateId, throttle, isBrowser, resolveContainer } from './utils';
 import { CanvasRenderer, RenderFireworkParticle } from './CanvasRenderer';
 
 /** Firework particle state */
@@ -83,6 +83,9 @@ export interface FireworksOptions {
     /** Explosion pattern type - single pattern or array for random selection (default: 'circular') */
     explosionPattern?: ExplosionPattern | ExplosionPattern[];
 
+    /** Maximum concurrent particles to prevent frame drops (default: 500) */
+    maxParticles?: number;
+
     /** Auto start animation (default: true) */
     autoStart?: boolean;
 
@@ -115,6 +118,7 @@ const DEFAULTS: Required<Omit<FireworksOptions, 'container'>> = {
     gravity: 0.1,
     trail: true,
     explosionPattern: 'circular',
+    maxParticles: 500,
     autoStart: true,
     zIndex: 9999
 };
@@ -128,6 +132,8 @@ export class Fireworks {
     private lastLaunchTime = 0;
     private lastFrameTime = 0;
     private resizeHandler: (() => void) | null = null;
+    private visibilityHandler: (() => void) | null = null;
+    private pendingLaunches: number[] = [];
 
     constructor(options: FireworksOptions = {}) {
         // Check for browser environment
@@ -138,15 +144,7 @@ export class Fireworks {
             );
         }
 
-        // Resolve container
-        let container: HTMLElement;
-        if (!options.container) {
-            container = document.body;
-        } else if (typeof options.container === 'string') {
-            container = document.querySelector<HTMLElement>(options.container) || document.body;
-        } else {
-            container = options.container;
-        }
+        const container = resolveContainer(options.container);
 
         this.options = {
             container,
@@ -160,6 +158,7 @@ export class Fireworks {
             gravity: options.gravity ?? DEFAULTS.gravity,
             trail: options.trail ?? DEFAULTS.trail,
             explosionPattern: options.explosionPattern ?? DEFAULTS.explosionPattern,
+            maxParticles: options.maxParticles ?? DEFAULTS.maxParticles,
             autoStart: options.autoStart ?? DEFAULTS.autoStart,
             zIndex: options.zIndex ?? DEFAULTS.zIndex
         };
@@ -167,6 +166,16 @@ export class Fireworks {
         // Create canvas renderer
         this.renderer = new CanvasRenderer(container, this.options.zIndex);
         this.setupResizeHandler();
+
+        // Pause when tab is hidden to save CPU/GPU
+        this.visibilityHandler = () => {
+            if (document.hidden) {
+                if (this.isRunning) this.stop();
+            } else {
+                if (!this.isRunning) this.start();
+            }
+        };
+        document.addEventListener('visibilitychange', this.visibilityHandler);
 
         if (this.options.autoStart) {
             this.start();
@@ -224,6 +233,7 @@ export class Fireworks {
     }
 
     private explode(rocket: FireworkParticle): void {
+        if (this.particles.length >= this.options.maxParticles) return;
         const particleCount = this.options.particlesPerExplosion;
         const color = rocket.color;
 
@@ -565,13 +575,6 @@ export class Fireworks {
         return baseColor;
     }
 
-    private removeParticle(particle: FireworkParticle): void {
-        const index = this.particles.indexOf(particle);
-        if (index > -1) {
-            this.particles.splice(index, 1);
-        }
-    }
-
     private animate = (currentTime: number): void => {
         if (!this.isRunning || !this.renderer) return;
 
@@ -590,8 +593,8 @@ export class Fireworks {
         }
 
         // Update particles
-        const particlesToRemove: FireworkParticle[] = [];
         const particlesToExplode: FireworkParticle[] = [];
+        const removeSet = new Set<FireworkParticle>();
 
         for (const particle of this.particles) {
             particle.age += deltaTime;
@@ -622,36 +625,33 @@ export class Fireworks {
 
                 // Double pattern secondary explosion: trigger at 50% lifetime if flag is set
                 if (particle.hasSecondaryExplosion && lifeProgress >= 0.5 && particle.targetY !== -1) {
-                    // Mark as already triggered secondary explosion
                     particle.targetY = -1;
                     particlesToExplode.push(particle);
                 }
 
                 if (particle.age >= particle.maxAge) {
-                    particlesToRemove.push(particle);
+                    removeSet.add(particle);
                 }
             }
         }
 
-        // Handle explosions
+        // Handle explosions and mark rockets for removal
         for (const rocket of particlesToExplode) {
             if (rocket.stage === 1) {
-                // Stage 1 particle: trigger secondary explosion with smaller particles
                 this.explodeSecondary(rocket);
             } else {
-                // Rocket: normal explosion
                 this.explode(rocket);
             }
-            particlesToRemove.push(rocket);
+            removeSet.add(rocket);
         }
 
-        // Remove dead particles
-        for (const particle of particlesToRemove) {
-            this.removeParticle(particle);
+        // Remove dead particles in a single filter pass (O(n))
+        if (removeSet.size > 0) {
+            this.particles = this.particles.filter(p => !removeSet.has(p));
         }
 
         // Render all particles
-        this.renderer.clear();
+        this.renderer.clear(this.options.trail);
 
         const renderData: RenderFireworkParticle[] = this.particles.map(p => ({
             x: p.x,
@@ -682,6 +682,8 @@ export class Fireworks {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
+        this.pendingLaunches.forEach(id => clearTimeout(id));
+        this.pendingLaunches = [];
     }
 
     /** Clear all particles but keep running */
@@ -700,7 +702,11 @@ export class Fireworks {
     /** Launch multiple fireworks at once */
     burst(count: number = 5): void {
         for (let i = 0; i < count; i++) {
-            setTimeout(() => this.launchRocket(), i * 100);
+            const id = window.setTimeout(() => {
+                this.launchRocket();
+                this.pendingLaunches = this.pendingLaunches.filter(t => t !== id);
+            }, i * 100);
+            this.pendingLaunches.push(id);
         }
     }
 
@@ -715,6 +721,7 @@ export class Fireworks {
         if (newOptions.particleLifetime) this.options.particleLifetime = newOptions.particleLifetime;
         if (newOptions.gravity !== undefined) this.options.gravity = newOptions.gravity;
         if (newOptions.explosionPattern) this.options.explosionPattern = newOptions.explosionPattern;
+        if (newOptions.maxParticles !== undefined) this.options.maxParticles = newOptions.maxParticles;
     }
 
     /** Get particle count */
@@ -740,6 +747,11 @@ export class Fireworks {
         if (this.resizeHandler) {
             window.removeEventListener('resize', this.resizeHandler);
             this.resizeHandler = null;
+        }
+
+        if (this.visibilityHandler) {
+            document.removeEventListener('visibilitychange', this.visibilityHandler);
+            this.visibilityHandler = null;
         }
     }
 }

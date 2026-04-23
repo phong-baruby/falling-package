@@ -1,736 +1,802 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Falling Animation Demo</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>falling-animation — Live Demo</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #080810;
+      --surface: #0f0f1c;
+      --card:    #161627;
+      --border:  #252540;
+      --a1:      #7c3aed;
+      --a2:      #ec4899;
+      --a3:      #06b6d4;
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --r:       12px;
     }
+
+    html { scroll-behavior: smooth; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
       min-height: 100vh;
-      color: #fff;
-      overflow-x: hidden;
     }
 
-    .header {
-      text-align: center;
-      padding: 40px 20px;
+    /* ── Hero ── */
+    .hero {
       position: relative;
-      z-index: 10;
+      overflow: hidden;
+      padding: 80px 24px 56px;
+      text-align: center;
+      background: linear-gradient(160deg, #0d0d22 0%, #1a0828 50%, #081420 100%);
+      border-bottom: 1px solid var(--border);
     }
-
-    .header h1 {
-      font-size: 2.5rem;
-      background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+    #hero-fx { position: absolute; inset: 0; pointer-events: none; }
+    .hero-inner { position: relative; z-index: 2; }
+    .hero h1 {
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #a78bfa 0%, #ec4899 50%, #38bdf8 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
       margin-bottom: 10px;
     }
-
-    .header p {
-      color: #a0a0a0;
-      font-size: 1.1rem;
+    .hero-sub {
+      color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 480px;
+      margin: 0 auto 24px;
     }
+    .badges {
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    }
+    .badge {
+      padding: 3px 13px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border: 1px solid;
+    }
+    .b1 { background: #3b0f9030; border-color: #7c3aed70; color: #c4b5fd; }
+    .b2 { background: #831c4e30; border-color: #ec489970; color: #f9a8d4; }
+    .b3 { background: #065f7c30; border-color: #06b6d470; color: #67e8f9; }
 
-    .controls {
-      max-width: 800px;
-      margin: 0 auto 30px;
-      padding: 25px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+    /* ── Layout ── */
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    section { padding: 56px 0; }
+    section + section { border-top: 1px solid var(--border); }
+    .sh { margin-bottom: 28px; }
+    .sh h2 { font-size: 1.55rem; font-weight: 700; margin-bottom: 4px; }
+    .sh p  { color: var(--muted); font-size: 0.9rem; }
+
+    /* ── Demo boxes ── */
+    .dbox {
       position: relative;
-      z-index: 10;
-    }
-
-    .controls h2 {
-      margin-bottom: 20px;
-      font-size: 1.2rem;
-      color: #48dbfb;
-    }
-
-    .control-group {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-
-    .control-item {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .control-item label {
-      font-size: 0.9rem;
-      color: #ccc;
-    }
-
-    .control-item select,
-    .control-item input[type="range"] {
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-      font-size: 0.95rem;
-    }
-
-    .control-item select:focus,
-    .control-item input[type="range"]:focus {
-      outline: none;
-      border-color: #48dbfb;
-    }
-
-    .control-item input[type="range"] {
-      -webkit-appearance: none;
-      height: 8px;
-      background: rgba(255, 255, 255, 0.2);
-      cursor: pointer;
-    }
-
-    .control-item input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 20px;
-      height: 20px;
-      background: #48dbfb;
-      border-radius: 50%;
-      cursor: pointer;
-    }
-
-    .range-value {
-      font-size: 0.85rem;
-      color: #48dbfb;
-      text-align: right;
-    }
-
-    .buttons {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-top: 20px;
-    }
-
-    .btn {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, #48dbfb, #0abde3);
-      color: #1a1a2e;
-    }
-
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .btn-danger {
-      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-      color: #fff;
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    }
-
-    .btn:active {
-      transform: translateY(0);
-    }
-
-    .presets {
-      max-width: 800px;
-      margin: 0 auto 30px;
-      padding: 25px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      position: relative;
-      z-index: 10;
-    }
-
-    .presets h2 {
-      margin-bottom: 15px;
-      font-size: 1.2rem;
-      color: #feca57;
-    }
-
-    .preset-buttons {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .preset-btn {
-      padding: 10px 18px;
-      border: none;
-      border-radius: 20px;
-      font-size: 0.95rem;
-      cursor: pointer;
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      transition: all 0.2s ease;
-    }
-
-    .preset-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: scale(1.05);
-    }
-
-    .stats {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      padding: 15px 20px;
-      background: rgba(0, 0, 0, 0.7);
       border-radius: 10px;
-      font-size: 0.9rem;
-      z-index: 10000;
-    }
-
-    .stats-item {
-      display: flex;
-      justify-content: space-between;
-      gap: 20px;
-    }
-
-    .stats-value {
-      color: #48dbfb;
-      font-weight: bold;
-    }
-
-    .footer {
-      text-align: center;
-      padding: 30px;
-      color: #666;
-      font-size: 0.9rem;
-      position: relative;
-      z-index: 10;
-    }
-
-    .footer a {
-      color: #48dbfb;
-      text-decoration: none;
-    }
-
-    .footer a:hover {
-      text-decoration: underline;
-    }
-
-    /* Demo container for bounded demo */
-    .demo-container {
-      max-width: 800px;
-      margin: 0 auto 30px;
-      height: 300px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 16px;
-      border: 2px dashed rgba(255, 255, 255, 0.2);
-      position: relative;
       overflow: hidden;
+      background: linear-gradient(180deg, #0b0b18 0%, #160824 100%);
+      border: 1px solid var(--border);
+    }
+    .dlabel {
+      position: absolute; top: 9px; left: 11px; z-index: 10;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--muted);
+      background: #00000055; padding: 2px 9px; border-radius: 999px;
+      pointer-events: none;
+    }
+    .dbadge {
+      position: absolute; top: 9px; right: 11px; z-index: 10;
+      display: flex; align-items: center; gap: 5px;
+      background: #12103a; border: 1px solid #4c1d95;
+      padding: 2px 11px; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 700; color: #c4b5fd;
+      pointer-events: none;
+    }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      flex-shrink: 0;
     }
 
-    .demo-container-label {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: rgba(255, 255, 255, 0.3);
-      font-size: 1.2rem;
-      pointer-events: none;
-      z-index: 1;
+    /* ── Grid ── */
+    .g2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+    .g4 { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+
+    /* ── Small cards for animation/pattern grids ── */
+    .small-card {
+      position: relative;
+      height: 154px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, #0b0b18 0%, #12081e 100%);
+      cursor: pointer;
+      transition: border-color 0.18s, transform 0.14s;
     }
+    .small-card:hover { transform: translateY(-2px); }
+    .small-card.ac1:hover { border-color: var(--a1); }
+    .small-card.ac2:hover { border-color: var(--a2); }
+    .small-label {
+      position: absolute; bottom: 7px; left: 0; right: 0;
+      text-align: center; font-size: 0.75rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      pointer-events: none; z-index: 10;
+    }
+    .small-label.c1 { color: #a78bfa; }
+    .small-label.c2 { color: #f9a8d4; }
+
+    /* ── Controls ── */
+    .cpanel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 18px;
+    }
+    .cpanel h3 {
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.09em; color: var(--muted); margin-bottom: 14px;
+    }
+    .crow {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .crow label { font-size: 0.83rem; min-width: 88px; }
+    .crow input[type=range] { flex: 1; accent-color: var(--a1); cursor: pointer; }
+    .crow .v { font-size: 0.78rem; color: var(--a1); min-width: 40px; text-align: right; font-weight: 700; }
+
+    /* ── Buttons ── */
+    .brow { display: flex; flex-wrap: wrap; gap: 7px; }
+    .btn {
+      padding: 6px 15px; border-radius: 7px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: background 0.14s, border-color 0.14s, transform 0.1s;
+      line-height: 1;
+    }
+    .btn:hover { background: var(--border); transform: translateY(-1px); }
+    .btn:active { transform: none; }
+    .btn.on  { background: var(--a1); border-color: var(--a1); color: #fff; }
+    .bp { background: var(--a1); border-color: var(--a1); color: #fff; }
+    .bp:hover { background: #6d28d9; }
+    .bk { background: var(--a2); border-color: var(--a2); color: #fff; }
+    .bk:hover { background: #db2777; }
+    .bc { background: var(--a3); border-color: var(--a3); color: #fff; }
+    .bc:hover { background: #0891b2; }
+
+    /* ── Combo box ── */
+    .combo-box {
+      position: relative;
+      height: 380px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #04040e 0%, #0d0420 50%, #04040e 100%);
+      border: 1px solid var(--border);
+    }
+    .combo-center {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 20; text-align: center; pointer-events: none;
+    }
+    .combo-title {
+      font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 800;
+      background: linear-gradient(135deg, #a78bfa, #f472b6, #38bdf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .combo-sub { color: var(--muted); font-size: 0.88rem; margin-top: 4px; }
+    .combo-controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 14px; }
+
+    /* ── Emoji section preset row ── */
+    .preset-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+
+    /* ── Controls 2-col ── */
+    .ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .ctrl-grid { grid-template-columns: 1fr; } }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center; padding: 36px 24px;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 0.83rem;
+    }
+    footer a { color: var(--a1); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   </style>
 </head>
-
 <body>
-  <div class="header">
-    <h1>🎉 Falling Animation</h1>
-    <p>A lightweight, customizable falling objects animation library</p>
-  </div>
 
-  <div class="controls">
-    <h2>⚙️ Controls</h2>
-    <div class="control-group">
-      <div class="control-item">
-        <label>Animation Type</label>
-        <select id="animationType">
-          <option value="fall">Fall (Simple)</option>
-          <option value="swing" selected>Swing (Pendulum)</option>
-          <option value="rotate">Rotate (Spin)</option>
-          <option value="flutter">Flutter (Butterfly)</option>
-          <option value="spiral">Spiral</option>
-          <option value="tumble">Tumble (Chaotic)</option>
-          <option value="zigzag">Zigzag</option>
-          <option value="float">Float (Gentle)</option>
-          <option value="random">Random Mix</option>
-        </select>
-      </div>
-
-      <div class="control-item">
-        <label>Speed: <span id="speedValue" class="range-value">3</span></label>
-        <input type="range" id="speed" min="0" max="10" value="3" step="0.5">
-      </div>
-
-      <div class="control-item">
-        <label>Spawn Rate: <span id="rateValue" class="range-value">3/s</span></label>
-        <input type="range" id="spawnRate" min="1" max="20" value="3">
-      </div>
-
-      <div class="control-item">
-        <label>Max Particles: <span id="maxValue" class="range-value">50</span></label>
-        <input type="range" id="maxParticles" min="10" max="200" value="50">
-      </div>
-
-      <div class="control-item">
-        <label>Size: <span id="sizeValue" class="range-value">30px</span></label>
-        <input type="range" id="size" min="10" max="80" value="30">
-      </div>
-
-      <div class="control-item">
-        <label>Wind: <span id="windValue" class="range-value">0</span></label>
-        <input type="range" id="wind" min="-10" max="10" value="0">
-      </div>
-    </div>
-
-    <div class="buttons">
-      <button class="btn btn-primary" id="btnStart">▶️ Start</button>
-      <button class="btn btn-secondary" id="btnPause">⏸️ Pause</button>
-      <button class="btn btn-danger" id="btnStop">⏹️ Stop</button>
+<!-- Hero -->
+<div class="hero">
+  <div id="hero-fx"></div>
+  <div class="hero-inner">
+    <h1>falling-animation</h1>
+    <p class="hero-sub">Lightweight, zero-dependency canvas library for falling objects &amp; fireworks — no build step needed.</p>
+    <div class="badges">
+      <span class="badge b1">Canvas-based</span>
+      <span class="badge b2">8 Animation Types</span>
+      <span class="badge b3">10 Explosion Patterns</span>
+      <span class="badge b1">React 18 Demo</span>
     </div>
   </div>
+</div>
 
-  <div class="presets">
-    <h2>🎨 Presets</h2>
-    <div class="preset-buttons">
-      <button class="preset-btn" data-preset="snow">❄️ Snow</button>
-      <button class="preset-btn" data-preset="leaves">🍁 Autumn Leaves</button>
-      <button class="preset-btn" data-preset="sakura">🌸 Sakura</button>
-      <button class="preset-btn" data-preset="confetti">🎊 Confetti</button>
-      <button class="preset-btn" data-preset="hearts">💕 Hearts</button>
-      <button class="preset-btn" data-preset="money">💵 Money Rain</button>
-      <button class="preset-btn" data-preset="stars">⭐ Stars</button>
-      <button class="preset-btn" data-preset="newyear">🎆 New Year</button>
-    </div>
-  </div>
+<div id="root"></div>
 
-  <div class="presets" style="border-color: #ff6b6b;">
-    <h2 style="color: #ff6b6b;">🎆 Fireworks</h2>
-    <p style="color: #888; margin-bottom: 15px;">Real firework effects with rockets and explosions!</p>
-    <div class="control-group">
-      <div class="control-item">
-        <label>Explosion Pattern</label>
-        <select id="fwPattern">
-          <option value="random" selected>🎲 Random Mix</option>
-          <option value="circular">⭕ Circular</option>
-          <option value="ring">💍 Ring</option>
-          <option value="heart">❤️ Heart</option>
-          <option value="star">⭐ Star</option>
-          <option value="willow">🌳 Willow</option>
-          <option value="palm">🌴 Palm</option>
-          <option value="chrysanthemum">🌼 Chrysanthemum</option>
-          <option value="embers">✨ Embers (Tàn Lửa)</option>
-          <option value="double">🎇 Double (Nổ 2 Lần)</option>
-          <option value="waterfall">🌊 Waterfall (Thác Nước)</option>
-        </select>
-      </div>
-      <div class="control-item">
-        <label>Launch Rate: <span id="fwRateValue" class="range-value">1/s</span></label>
-        <input type="range" id="fwRate" min="0.5" max="3" value="1" step="0.5">
-      </div>
-      <div class="control-item">
-        <label>Particles/Explosion: <span id="fwParticlesValue" class="range-value">40</span></label>
-        <input type="range" id="fwParticles" min="20" max="80" value="40">
-      </div>
-    </div>
-    <div class="buttons">
-      <button class="btn btn-primary" id="btnFwStart" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);">🎆
-        Start Fireworks</button>
-      <button class="btn btn-secondary" id="btnFwBurst">💥 Burst (5x)</button>
-      <button class="btn btn-danger" id="btnFwStop">⏹️ Stop</button>
-    </div>
-  </div>
+<footer>
+  <p>falling-animation &bull; React 18 via CDN &bull; No build step &bull;
+    <a href="https://github.com" target="_blank">GitHub</a>
+  </p>
+</footer>
 
-  <div class="stats">
-    <div class="stats-item">
-      <span>Particles:</span>
-      <span class="stats-value" id="particleCount">0</span>
-    </div>
-    <div class="stats-item">
-      <span>Status:</span>
-      <span class="stats-value" id="status">Stopped</span>
-    </div>
-  </div>
+<!-- React via importmap -->
+<script type="importmap">
+{
+  "imports": {
+    "react":            "https://esm.sh/react@18",
+    "react-dom/client": "https://esm.sh/react-dom@18/client"
+  }
+}
+</script>
 
-  <div class="footer">
-    <p>Made with ❤️ | <a href="https://github.com/phongdh/falling-animation">GitHub</a> | v0.1.0</p>
-  </div>
+<script type="module">
+import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { createRoot } from 'react-dom/client';
+import { FallingAnimation, Fireworks } from '../dist/falling-animation.esm.js';
 
-  <script type="module">
-    import { FallingAnimation, Fireworks } from '../dist/falling-animation.esm.js';
+const h = React.createElement;
 
-    // Fireworks instance
-    let fireworks = null;
+// ── Utility hooks ─────────────────────────────────────────────────────────
 
-    // Fireworks controls
-    const fwRateSlider = document.getElementById('fwRate');
-    const fwParticlesSlider = document.getElementById('fwParticles');
-    const fwPatternSelect = document.getElementById('fwPattern');
-    const fwRateValue = document.getElementById('fwRateValue');
-    const fwParticlesValue = document.getElementById('fwParticlesValue');
-    const btnFwStart = document.getElementById('btnFwStart');
-    const btnFwBurst = document.getElementById('btnFwBurst');
-    const btnFwStop = document.getElementById('btnFwStop');
+/** Poll a getter at 250 ms, return the latest value */
+function useCount(getter) {
+  const [n, set] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => set(getter ? getter() : 0), 250);
+    return () => clearInterval(id);
+  }, [getter]);
+  return n;
+}
 
-    // Fireworks handlers
-    fwRateSlider.addEventListener('input', () => {
-      fwRateValue.textContent = fwRateSlider.value + '/s';
-      if (fireworks) {
-        fireworks.setOptions({ launchRate: parseFloat(fwRateSlider.value) });
-      }
+// ══════════════════════════════════════════════════════════════════
+//  Section 1 — Emoji Showcase
+// ══════════════════════════════════════════════════════════════════
+
+const EMOJI_PRESETS = [
+  {
+    label: '❄️ Snow',
+    objects: [{ type: 'emoji', content: '❄️' }, { type: 'emoji', content: '🌨️' }, { type: 'emoji', content: '⛄' }],
+    animation: ['swing', 'float'], wind: 0.3,
+  },
+  {
+    label: '⭐ Stars',
+    objects: [{ type: 'emoji', content: '⭐' }, { type: 'emoji', content: '🌟' }, { type: 'emoji', content: '✨' }],
+    animation: ['rotate', 'fall'], wind: 0,
+  },
+  {
+    label: '💖 Hearts',
+    objects: [{ type: 'emoji', content: '❤️' }, { type: 'emoji', content: '💕' }, { type: 'emoji', content: '💗' }],
+    animation: ['float', 'swing'], wind: 0.1,
+  },
+  {
+    label: '🎊 Confetti',
+    objects: [
+      { type: 'emoji', content: '🎉' }, { type: 'emoji', content: '🎊' },
+      { type: 'emoji', content: '🎈' }, { type: 'emoji', content: '🥳' },
+    ],
+    animation: ['tumble', 'zigzag', 'rotate'], wind: 0.2,
+  },
+  {
+    label: '🍂 Leaves',
+    objects: [{ type: 'emoji', content: '🍂' }, { type: 'emoji', content: '🍁' }, { type: 'emoji', content: '🌿' }],
+    animation: ['flutter', 'swing'], wind: 0.4,
+  },
+  {
+    label: '🌸 Petals',
+    objects: [{ type: 'emoji', content: '🌸' }, { type: 'emoji', content: '🌺' }, { type: 'emoji', content: '🌷' }],
+    animation: ['flutter', 'spiral'], wind: 0.15,
+  },
+];
+
+function EmojiSection() {
+  const boxRef  = useRef(null);
+  const animRef = useRef(null);
+  const [idx, setIdx] = useState(0);
+
+  const count = useCount(useCallback(() => animRef.current?.getParticleCount() ?? 0, []));
+
+  // Mount animation once
+  useEffect(() => {
+    if (typeof window === 'undefined' || !boxRef.current) return;
+    const p = EMOJI_PRESETS[0];
+    const a = new FallingAnimation({
+      container: boxRef.current,
+      objects: p.objects, animation: p.animation, wind: p.wind,
+      spawnRate: 5, maxParticles: 60, size: { min: 22, max: 46 },
     });
+    animRef.current = a;
+    return () => { a.destroy(); animRef.current = null; };
+  }, []);
 
-    fwParticlesSlider.addEventListener('input', () => {
-      fwParticlesValue.textContent = fwParticlesSlider.value;
-      if (fireworks) {
-        fireworks.setOptions({ particlesPerExplosion: parseInt(fwParticlesSlider.value) });
-      }
-    });
+  const pick = (i) => {
+    setIdx(i);
+    const p = EMOJI_PRESETS[i];
+    animRef.current?.setOptions({ objects: p.objects, animation: p.animation, wind: p.wind });
+  };
 
-    fwPatternSelect.addEventListener('change', () => {
-      if (fireworks) {
-        fireworks.setOptions({ explosionPattern: fwPatternSelect.value });
-      }
-    });
-
-    btnFwStart.addEventListener('click', () => {
-      if (!fireworks) {
-        fireworks = new Fireworks({
-          launchRate: parseFloat(fwRateSlider.value),
-          particlesPerExplosion: parseInt(fwParticlesSlider.value),
-          explosionPattern: fwPatternSelect.value
-        });
-      } else if (!fireworks.getIsRunning()) {
-        fireworks.start();
-      }
-      btnFwStart.textContent = '🎆 Running...';
-    });
-
-    btnFwBurst.addEventListener('click', () => {
-      if (!fireworks) {
-        fireworks = new Fireworks({
-          launchRate: 0,
-          particlesPerExplosion: parseInt(fwParticlesSlider.value),
-          autoStart: false
-        });
-        fireworks.start();
-      }
-      fireworks.burst(5);
-    });
-
-    btnFwStop.addEventListener('click', () => {
-      if (fireworks) {
-        fireworks.stop();
-        fireworks.clear();
-        btnFwStart.textContent = '🎆 Start Fireworks';
-      }
-    });
-
-    // Presets configuration
-    const presets = {
-      snow: {
-        objects: [
-          { type: 'emoji', content: '❄️' },
-          { type: 'emoji', content: '❅' },
-          { type: 'emoji', content: '❆' }
-        ],
-        animation: 'float',
-        speed: { min: 1, max: 3 },
-        size: { min: 15, max: 35 }
+  return h('section', null,
+    h('div', { className: 'wrap' },
+      h('div', { className: 'sh' },
+        h('h2', null, '🌈 Emoji Showcase'),
+        h('p', null, 'Six themes — switch live without restarting via setOptions().'),
+      ),
+      h('div', {
+        className: 'dbox', ref: boxRef,
+        style: { height: 270, marginBottom: 14 },
       },
-      leaves: {
-        objects: [
-          { type: 'emoji', content: '🍁', weight: 3 },
-          { type: 'emoji', content: '🍂', weight: 2 },
-          { type: 'emoji', content: '🍃', weight: 1 }
-        ],
-        animation: 'swing',
-        speed: { min: 2, max: 4 },
-        size: { min: 25, max: 45 }
+        h('div', { className: 'dlabel' }, 'LIVE'),
+        h('div', { className: 'dbadge' },
+          h('span', { className: 'dot', style: { background: '#a78bfa' } }),
+          count + ' particles',
+        ),
+      ),
+      h('div', { className: 'preset-row' },
+        EMOJI_PRESETS.map((p, i) =>
+          h('button', {
+            key: i,
+            className: 'btn' + (idx === i ? ' on' : ''),
+            onClick: () => pick(i),
+          }, p.label)
+        ),
+      ),
+    ),
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  Section 2 — All 8 Animation Types
+// ══════════════════════════════════════════════════════════════════
+
+const ANIM_TYPES = ['fall', 'swing', 'rotate', 'flutter', 'spiral', 'tumble', 'zigzag', 'float'];
+const ANIM_EMOJI = {
+  fall: '⬇️', swing: '🎵', rotate: '🔄', flutter: '🦋',
+  spiral: '🌀', tumble: '🎲', zigzag: '⚡', float: '🌊',
+};
+
+function AnimCard({ type }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !ref.current) return;
+    const a = new FallingAnimation({
+      container: ref.current,
+      objects: [{ type: 'emoji', content: ANIM_EMOJI[type] }],
+      animation: [type],
+      spawnRate: 2, maxParticles: 10,
+      size: { min: 20, max: 34 }, speed: { min: 1.2, max: 3.2 },
+    });
+    return () => a.destroy();
+  }, [type]);
+  return h('div', { className: 'small-card ac1', ref },
+    h('div', { className: 'small-label c1' }, type),
+  );
+}
+
+function AnimSection() {
+  return h('section', null,
+    h('div', { className: 'wrap' },
+      h('div', { className: 'sh' },
+        h('h2', null, '🎭 All 8 Animation Types'),
+        h('p', null, 'Each card is an isolated FallingAnimation instance with a single animation type.'),
+      ),
+      h('div', { className: 'g4' },
+        ANIM_TYPES.map(t => h(AnimCard, { key: t, type: t })),
+      ),
+    ),
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  Section 3 — Interactive Controls
+// ══════════════════════════════════════════════════════════════════
+
+function ControlsSection() {
+  const boxRef  = useRef(null);
+  const animRef = useRef(null);
+  const [speed,     setSpeed    ] = useState(3);
+  const [rate,      setRate     ] = useState(5);
+  const [wind,      setWind     ] = useState(0);
+  const [maxP,      setMaxP     ] = useState(60);
+  const [paused,    setPaused   ] = useState(false);
+  const [selAnims,  setSelAnims ] = useState(['swing', 'flutter']);
+
+  const count = useCount(useCallback(() => animRef.current?.getParticleCount() ?? 0, []));
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !boxRef.current) return;
+    const a = new FallingAnimation({
+      container: boxRef.current,
+      objects: [
+        { type: 'emoji', content: '🌟' }, { type: 'emoji', content: '✨' },
+        { type: 'emoji', content: '💫' }, { type: 'emoji', content: '⭐' },
+      ],
+      animation: ['swing', 'flutter'],
+      spawnRate: 5, maxParticles: 60, speed: { min: 1.5, max: 4.5 },
+    });
+    animRef.current = a;
+    return () => { a.destroy(); animRef.current = null; };
+  }, []);
+
+  const onSpeed   = v => { setSpeed(v);   animRef.current?.setOptions({ speed: { min: v * 0.5, max: v * 1.5 } }); };
+  const onRate    = v => { setRate(v);    animRef.current?.setOptions({ spawnRate: v }); };
+  const onWind    = v => { setWind(v);    animRef.current?.setOptions({ wind: v / 10 }); };
+  const onMaxP    = v => { setMaxP(v);    animRef.current?.setOptions({ maxParticles: v }); };
+
+  const toggleAnim = t => {
+    setSelAnims(prev => {
+      const next = prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t];
+      if (!next.length) return prev;
+      animRef.current?.setOptions({ animation: next });
+      return next;
+    });
+  };
+  const togglePause = () => {
+    if (!animRef.current) return;
+    if (paused) { animRef.current.resume(); setPaused(false); }
+    else         { animRef.current.pause();  setPaused(true);  }
+  };
+  const restart = () => {
+    if (!animRef.current) return;
+    animRef.current.stop();
+    setTimeout(() => { animRef.current?.start(); setPaused(false); }, 30);
+  };
+
+  const dotColor = paused ? '#f59e0b' : '#a78bfa';
+
+  return h('section', null,
+    h('div', { className: 'wrap' },
+      h('div', { className: 'sh' },
+        h('h2', null, '🎛️ Interactive Controls'),
+        h('p', null, 'All sliders call setOptions() to update the running animation in real-time.'),
+      ),
+      h('div', {
+        className: 'dbox', ref: boxRef,
+        style: { height: 250, marginBottom: 18 },
       },
-      sakura: {
-        objects: [
-          { type: 'emoji', content: '🌸' },
-          { type: 'emoji', content: '💮' }
-        ],
-        animation: 'flutter',
-        speed: { min: 1, max: 3 },
-        size: { min: 20, max: 40 }
+        h('div', { className: 'dlabel' }, paused ? 'PAUSED' : 'LIVE'),
+        h('div', { className: 'dbadge' },
+          h('span', { className: 'dot', style: { background: dotColor } }),
+          count + ' particles',
+        ),
+      ),
+      h('div', { className: 'ctrl-grid' },
+        // Physics panel
+        h('div', { className: 'cpanel' },
+          h('h3', null, 'Physics'),
+          h('div', { className: 'crow' },
+            h('label', null, 'Speed'),
+            h('input', { type: 'range', min: 1, max: 10, value: speed, onInput: e => onSpeed(+e.target.value) }),
+            h('span', { className: 'v' }, speed),
+          ),
+          h('div', { className: 'crow' },
+            h('label', null, 'Spawn/s'),
+            h('input', { type: 'range', min: 1, max: 20, value: rate, onInput: e => onRate(+e.target.value) }),
+            h('span', { className: 'v' }, rate),
+          ),
+          h('div', { className: 'crow' },
+            h('label', null, 'Wind'),
+            h('input', { type: 'range', min: -10, max: 10, value: wind, onInput: e => onWind(+e.target.value) }),
+            h('span', { className: 'v' }, wind),
+          ),
+          h('div', { className: 'crow' },
+            h('label', null, 'Max Particles'),
+            h('input', { type: 'range', min: 10, max: 150, value: maxP, onInput: e => onMaxP(+e.target.value) }),
+            h('span', { className: 'v' }, maxP),
+          ),
+        ),
+        // Animation / Playback panel
+        h('div', { className: 'cpanel' },
+          h('h3', null, 'Animation Types (toggle)'),
+          h('div', { className: 'brow', style: { marginBottom: 16 } },
+            ANIM_TYPES.map(t =>
+              h('button', {
+                key: t,
+                className: 'btn' + (selAnims.includes(t) ? ' on' : ''),
+                onClick: () => toggleAnim(t),
+              }, t),
+            ),
+          ),
+          h('h3', null, 'Playback'),
+          h('div', { className: 'brow' },
+            h('button', {
+              className: 'btn ' + (paused ? 'bc' : 'bp'),
+              onClick: togglePause,
+            }, paused ? '▶ Resume' : '⏸ Pause'),
+            h('button', { className: 'btn', onClick: restart }, '⟳ Restart'),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  Section 4 — Fireworks
+// ══════════════════════════════════════════════════════════════════
+
+const FW_PATTERNS = [
+  'circular','ring','heart','star','willow','palm','chrysanthemum','embers','double','waterfall',
+];
+const FW_ICONS = {
+  circular: '🎆', ring: '💍', heart: '❤️', star: '⭐',
+  willow: '🌿', palm: '🌴', chrysanthemum: '🌸', embers: '✨', double: '💥', waterfall: '💧',
+};
+
+/** Small burst card for each pattern */
+function PatternCard({ pattern }) {
+  const ref  = useRef(null);
+  const fwRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !ref.current) return;
+    const fw = new Fireworks({
+      container: ref.current,
+      explosionPattern: pattern,
+      launchRate: 0.25,
+      particlesPerExplosion: 38,
+      autoStart: false,
+    });
+    fwRef.current = fw;
+    return () => { fw.destroy(); fwRef.current = null; };
+  }, [pattern]);
+
+  const click = () => {
+    if (!fwRef.current) return;
+    if (!fwRef.current.getIsRunning()) fwRef.current.start();
+    fwRef.current.burst(3);
+  };
+
+  return h('div', {
+    className: 'small-card ac2', ref,
+    onClick: click, title: `Click to burst — ${pattern}`,
+  },
+    h('div', { className: 'small-label c2' }, `${FW_ICONS[pattern]} ${pattern}`),
+  );
+}
+
+function FireworksSection() {
+  const boxRef = useRef(null);
+  const fwRef  = useRef(null);
+  const [running, setRunning] = useState(true);
+  const [rate,    setRate   ] = useState(1);
+  const [pattern, setPattern] = useState('random');
+
+  const count = useCount(useCallback(() => fwRef.current?.getParticleCount() ?? 0, []));
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !boxRef.current) return;
+    const fw = new Fireworks({
+      container: boxRef.current,
+      launchRate: 1, explosionPattern: 'random',
+      particlesPerExplosion: 60, trail: true,
+    });
+    fwRef.current = fw;
+    return () => { fw.destroy(); fwRef.current = null; };
+  }, []);
+
+  const onRate = v => {
+    setRate(v);
+    fwRef.current?.setOptions({ launchRate: v });
+  };
+  const onPattern = p => {
+    setPattern(p);
+    fwRef.current?.setOptions({ explosionPattern: p });
+  };
+  const toggle = () => {
+    if (!fwRef.current) return;
+    if (running) { fwRef.current.stop(); setRunning(false); }
+    else          { fwRef.current.start(); setRunning(true); }
+  };
+
+  const dotColor = running ? '#f472b6' : '#64748b';
+
+  return h('section', null,
+    h('div', { className: 'wrap' },
+      h('div', { className: 'sh' },
+        h('h2', null, '🎆 Fireworks'),
+        h('p', null, '10 explosion patterns — click any small card to burst that pattern.'),
+      ),
+
+      // Main preview
+      h('div', {
+        className: 'dbox', ref: boxRef,
+        style: { height: 290, marginBottom: 18 },
       },
-      confetti: {
-        objects: [
-          { type: 'emoji', content: '🎊' },
-          { type: 'emoji', content: '🎉' },
-          { type: 'emoji', content: '✨' },
-          { type: 'emoji', content: '🎈' }
-        ],
-        animation: ['tumble', 'rotate', 'zigzag'],
-        speed: { min: 3, max: 6 },
-        size: { min: 20, max: 35 },
-        spawnRate: 8
-      },
-      hearts: {
-        objects: [
-          { type: 'emoji', content: '❤️' },
-          { type: 'emoji', content: '💕' },
-          { type: 'emoji', content: '💖' },
-          { type: 'emoji', content: '💗' }
-        ],
-        animation: 'float',
-        speed: { min: 1, max: 2 },
-        size: { min: 20, max: 40 }
-      },
-      money: {
-        objects: [
-          { type: 'emoji', content: '💵' },
-          { type: 'emoji', content: '💰' },
-          { type: 'emoji', content: '💸' }
-        ],
-        animation: 'swing',
-        speed: { min: 3, max: 5 },
-        size: { min: 30, max: 50 }
-      },
-      stars: {
-        objects: [
-          { type: 'emoji', content: '⭐' },
-          { type: 'emoji', content: '🌟' },
-          { type: 'emoji', content: '✨' }
-        ],
-        animation: 'spiral',
-        speed: { min: 2, max: 4 },
-        size: { min: 15, max: 30 }
-      },
-      newyear: {
-        objects: [
-          { type: 'emoji', content: '🎆' },
-          { type: 'emoji', content: '🎇' },
-          { type: 'emoji', content: '✨' },
-          { type: 'emoji', content: '🎊' },
-          { type: 'emoji', content: '🥂' }
-        ],
-        animation: ['tumble', 'rotate', 'spiral'],
-        speed: { min: 2, max: 5 },
-        size: { min: 25, max: 45 },
-        spawnRate: 6
-      }
-    };
+        h('div', { className: 'dlabel' }, running ? 'LIVE' : 'STOPPED'),
+        h('div', { className: 'dbadge' },
+          h('span', { className: 'dot', style: { background: dotColor } }),
+          count + ' particles',
+        ),
+      ),
 
-    // Initialize main animation (fullscreen)
-    let mainAnimation = null;
+      // Controls row
+      h('div', { className: 'ctrl-grid', style: { marginBottom: 20 } },
+        h('div', { className: 'cpanel' },
+          h('h3', null, 'Launch Rate'),
+          h('div', { className: 'crow' },
+            h('label', null, 'Rate /s'),
+            h('input', { type: 'range', min: 0.2, max: 5, step: 0.1, value: rate, onInput: e => onRate(+e.target.value) }),
+            h('span', { className: 'v' }, rate.toFixed(1)),
+          ),
+          h('div', { className: 'brow', style: { marginTop: 4 } },
+            h('button', { className: 'btn ' + (running ? 'bk' : 'bc'), onClick: toggle },
+              running ? '⏹ Stop' : '▶ Start',
+            ),
+            h('button', { className: 'btn bp', onClick: () => fwRef.current?.burst(5) }, '💥 Burst ×5'),
+          ),
+        ),
+        h('div', { className: 'cpanel' },
+          h('h3', null, 'Pattern'),
+          h('div', { className: 'brow' },
+            ['random', ...FW_PATTERNS].map(p =>
+              h('button', {
+                key: p,
+                className: 'btn' + (pattern === p ? ' on' : ''),
+                onClick: () => onPattern(p),
+              }, p),
+            ),
+          ),
+        ),
+      ),
 
-    // DOM elements
-    const animationType = document.getElementById('animationType');
-    const speedSlider = document.getElementById('speed');
-    const spawnRateSlider = document.getElementById('spawnRate');
-    const maxParticlesSlider = document.getElementById('maxParticles');
-    const sizeSlider = document.getElementById('size');
-    const windSlider = document.getElementById('wind');
+      // Pattern grid (clickable burst cards)
+      h('p', { style: { fontSize: '0.78rem', color: 'var(--muted)', marginBottom: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' } },
+        'Click to burst each pattern',
+      ),
+      h('div', { className: 'g4' },
+        FW_PATTERNS.map(p => h(PatternCard, { key: p, pattern: p })),
+      ),
+    ),
+  );
+}
 
-    const speedValue = document.getElementById('speedValue');
-    const rateValue = document.getElementById('rateValue');
-    const maxValue = document.getElementById('maxValue');
-    const sizeValue = document.getElementById('sizeValue');
-    const windValue = document.getElementById('windValue');
+// ══════════════════════════════════════════════════════════════════
+//  Section 5 — Grand Finale (Combo)
+// ══════════════════════════════════════════════════════════════════
 
-    const btnStart = document.getElementById('btnStart');
-    const btnPause = document.getElementById('btnPause');
-    const btnStop = document.getElementById('btnStop');
+function ComboSection() {
+  const boxRef     = useRef(null);
+  const fwRef      = useRef(null);
+  const fallingRef = useRef(null);
+  const [active, setActive] = useState(false);
 
-    const particleCountEl = document.getElementById('particleCount');
-    const statusEl = document.getElementById('status');
+  const count = useCount(useCallback(() =>
+    (fwRef.current?.getParticleCount() ?? 0) + (fallingRef.current?.getParticleCount() ?? 0),
+  []));
 
-    // Get current settings
-    function getCurrentSettings() {
-      const speed = parseFloat(speedSlider.value);
-      const size = parseInt(sizeSlider.value);
-      let animation = animationType.value;
-
-      if (animation === 'random') {
-        animation = ['fall', 'swing', 'rotate', 'flutter', 'spiral', 'tumble', 'zigzag', 'float'];
-      }
-
-      return {
-        objects: [
-          { type: 'emoji', content: '🍁' },
-          { type: 'emoji', content: '🌸' },
-          { type: 'emoji', content: '❄️' }
-        ],
-        animation,
-        speed: speed === 0 ? { min: 0, max: 0 } : { min: Math.max(0.5, speed - 1), max: speed + 2 },
-        spawnRate: parseInt(spawnRateSlider.value),
-        maxParticles: parseInt(maxParticlesSlider.value),
-        size: { min: size - 10, max: size + 10 },
-        wind: parseInt(windSlider.value) / 10,
-        autoStart: false
-      };
-    }
-
-    // Create animation
-    function createAnimation() {
-      if (mainAnimation) {
-        mainAnimation.destroy();
-      }
-      mainAnimation = new FallingAnimation(getCurrentSettings());
-    }
-
-    // Update stats
-    function updateStats() {
-      if (mainAnimation) {
-        particleCountEl.textContent = mainAnimation.getParticleCount();
-
-        if (mainAnimation.getIsRunning()) {
-          statusEl.textContent = 'Running';
-          statusEl.style.color = '#48dbfb';
-        } else if (mainAnimation.getIsPaused()) {
-          statusEl.textContent = 'Paused';
-          statusEl.style.color = '#feca57';
-        } else {
-          statusEl.textContent = 'Stopped';
-          statusEl.style.color = '#ff6b6b';
-        }
-      }
-      requestAnimationFrame(updateStats);
-    }
-
-    // Initialize
-    createAnimation();
-    updateStats();
-
-    // Event listeners for sliders
-    speedSlider.addEventListener('input', () => {
-      const speed = parseFloat(speedSlider.value);
-      speedValue.textContent = speed.toFixed(1);
-      if (mainAnimation) {
-        const speedRange = speed === 0 ? { min: 0, max: 0 } : { min: Math.max(0.5, speed - 1), max: speed + 2 };
-        mainAnimation.setOptions({ speed: speedRange });
-      }
+  const launch = useCallback(() => {
+    if (typeof window === 'undefined' || !boxRef.current || active) return;
+    const fw = new Fireworks({
+      container: boxRef.current,
+      launchRate: 1.5, explosionPattern: 'random',
+      particlesPerExplosion: 70, trail: true,
     });
-
-    spawnRateSlider.addEventListener('input', () => {
-      rateValue.textContent = spawnRateSlider.value + '/s';
-      if (mainAnimation) {
-        mainAnimation.setOptions({ spawnRate: parseInt(spawnRateSlider.value) });
-      }
+    const falling = new FallingAnimation({
+      container: boxRef.current,
+      objects: [
+        { type: 'emoji', content: '🎉' }, { type: 'emoji', content: '🎊' },
+        { type: 'emoji', content: '⭐' }, { type: 'emoji', content: '✨' },
+        { type: 'emoji', content: '🎈' }, { type: 'emoji', content: '💫' },
+      ],
+      animation: ['tumble', 'zigzag', 'rotate', 'flutter'],
+      spawnRate: 8, maxParticles: 80,
+      size: { min: 18, max: 42 }, wind: 0.1,
     });
+    fwRef.current      = fw;
+    fallingRef.current = falling;
+    setActive(true);
+  }, [active]);
 
-    maxParticlesSlider.addEventListener('input', () => {
-      maxValue.textContent = maxParticlesSlider.value;
-      if (mainAnimation) {
-        mainAnimation.setOptions({ maxParticles: parseInt(maxParticlesSlider.value) });
-      }
+  const stop = useCallback(() => {
+    fwRef.current?.destroy();      fwRef.current = null;
+    fallingRef.current?.destroy(); fallingRef.current = null;
+    setActive(false);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => () => {
+    fwRef.current?.destroy();
+    fallingRef.current?.destroy();
+  }, []);
+
+  return h('section', null,
+    h('div', { className: 'wrap' },
+      h('div', { className: 'sh' },
+        h('h2', null, '🚀 Grand Finale — Fireworks + Falling'),
+        h('p', null, 'Both FallingAnimation and Fireworks running simultaneously in the same container.'),
+      ),
+      h('div', { className: 'combo-box', ref: boxRef },
+        !active && h('div', { className: 'combo-center' },
+          h('div', { className: 'combo-title' }, '✨ Grand Finale'),
+          h('div', { className: 'combo-sub'  }, 'Press Launch to start the show'),
+        ),
+        active && h('div', {
+          style: {
+            position: 'absolute', top: 12, right: 14, zIndex: 30, pointerEvents: 'none',
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: '#12103a', border: '1px solid #4c1d95',
+            padding: '3px 12px', borderRadius: 999,
+            fontSize: '0.75rem', fontWeight: 700, color: '#c4b5fd',
+          },
+        },
+          h('span', { style: { width: 6, height: 6, borderRadius: '50%', background: '#f472b6', display: 'inline-block' } }),
+          count + ' total particles',
+        ),
+      ),
+      h('div', { className: 'combo-controls' },
+        !active
+          ? h('button', {
+              className: 'btn bp',
+              style: { fontSize: '0.95rem', padding: '9px 26px' },
+              onClick: launch,
+            }, '🚀 Launch Grand Finale')
+          : h(Fragment, null,
+              h('button', {
+                className: 'btn bk',
+                style: { fontSize: '0.95rem', padding: '9px 26px' },
+                onClick: stop,
+              }, '⏹ Stop Show'),
+              h('button', { className: 'btn', onClick: () => fwRef.current?.burst(8) }, '💥 Extra Burst ×8'),
+            ),
+      ),
+    ),
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  App root
+// ══════════════════════════════════════════════════════════════════
+
+function App() {
+  return h(Fragment, null,
+    h(EmojiSection),
+    h(AnimSection),
+    h(ControlsSection),
+    h(FireworksSection),
+    h(ComboSection),
+  );
+}
+
+// ── Hero background animation ─────────────────────────────────────
+if (typeof window !== 'undefined') {
+  const heroEl = document.getElementById('hero-fx');
+  if (heroEl) {
+    new FallingAnimation({
+      container: heroEl,
+      objects: [
+        { type: 'emoji', content: '✨' }, { type: 'emoji', content: '⭐' },
+        { type: 'emoji', content: '💫' }, { type: 'emoji', content: '🌟' },
+      ],
+      animation: ['float', 'swing', 'flutter'],
+      spawnRate: 3, maxParticles: 35,
+      size: { min: 14, max: 32 },
+      opacity: { min: 0.25, max: 0.65 },
+      wind: 0.08,
     });
+  }
+}
 
-    sizeSlider.addEventListener('input', () => {
-      sizeValue.textContent = sizeSlider.value + 'px';
-      if (mainAnimation) {
-        const size = parseInt(sizeSlider.value);
-        mainAnimation.setOptions({ size: { min: size - 10, max: size + 10 } });
-      }
-    });
-
-    windSlider.addEventListener('input', () => {
-      const wind = parseInt(windSlider.value) / 10;
-      windValue.textContent = wind.toFixed(1);
-      if (mainAnimation) {
-        mainAnimation.setOptions({ wind });
-      }
-    });
-
-    animationType.addEventListener('change', () => {
-      let animation = animationType.value;
-      if (animation === 'random') {
-        animation = ['fall', 'swing', 'rotate', 'flutter', 'spiral', 'tumble', 'zigzag', 'float'];
-      }
-      if (mainAnimation) {
-        mainAnimation.setOptions({ animation });
-      }
-    });
-
-    // Control buttons
-    btnStart.addEventListener('click', () => {
-      if (!mainAnimation || !mainAnimation.getIsRunning()) {
-        if (!mainAnimation) {
-          createAnimation();
-        }
-        mainAnimation.start();
-      }
-    });
-
-    btnPause.addEventListener('click', () => {
-      if (mainAnimation) {
-        if (mainAnimation.getIsPaused()) {
-          mainAnimation.resume();
-          btnPause.textContent = '⏸️ Pause';
-        } else {
-          mainAnimation.pause();
-          btnPause.textContent = '▶️ Resume';
-        }
-      }
-    });
-
-    btnStop.addEventListener('click', () => {
-      if (mainAnimation) {
-        mainAnimation.stop();
-        btnPause.textContent = '⏸️ Pause';
-      }
-    });
-
-    // Preset buttons
-    document.querySelectorAll('.preset-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const presetName = btn.dataset.preset;
-        const preset = presets[presetName];
-
-        if (preset && mainAnimation) {
-          mainAnimation.stop();
-          mainAnimation.destroy();
-
-          mainAnimation = new FallingAnimation({
-            ...preset,
-            autoStart: true,
-            maxParticles: parseInt(maxParticlesSlider.value)
-          });
-        }
-      });
-    });
-
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-      if (mainAnimation) mainAnimation.destroy();
-      if (fireworks) fireworks.destroy();
-    });
-  </script>
+// ── Mount ────────────────────────────────────────────────────────
+createRoot(document.getElementById('root')).render(h(App));
+</script>
 </body>
-
 </html>

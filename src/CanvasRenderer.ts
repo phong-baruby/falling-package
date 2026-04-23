@@ -12,6 +12,8 @@ interface CachedSprite {
     height: number;
 }
 
+const SPRITE_CACHE_MAX = 100;
+
 /** Particle data for rendering */
 export interface RenderParticle {
     x: number;
@@ -87,13 +89,18 @@ export class CanvasRenderer {
      * Resize canvas to match container
      */
     resize(): void {
-        const rect = this.canvas.parentElement?.getBoundingClientRect();
+        const isFixed = this.canvas.style.position === 'fixed';
+        const rect = isFixed
+            ? { width: window.innerWidth, height: window.innerHeight }
+            : this.canvas.parentElement?.getBoundingClientRect();
         if (rect) {
             const dpr = window.devicePixelRatio || 1;
             this.width = rect.width;
             this.height = rect.height;
             this.canvas.width = this.width * dpr;
             this.canvas.height = this.height * dpr;
+            // Reset transform before scaling to prevent accumulation on repeated resizes
+            this.ctx.setTransform(1, 0, 0, 1, 0, 0);
             this.ctx.scale(dpr, dpr);
         }
     }
@@ -106,10 +113,7 @@ export class CanvasRenderer {
     }
 
     /**
-     * Clear the entire canvas
-     */
-    /**
-     * Clear the entire canvas
+     * Clear the entire canvas.
      * @param trail If true, fades out existing content instead of hard clear
      */
     clear(trail: boolean = false): void {
@@ -165,6 +169,11 @@ export class CanvasRenderer {
             height: logicalSize
         };
 
+        // Evict oldest entry if cache is full
+        if (this.spriteCache.size >= SPRITE_CACHE_MAX) {
+            const firstKey = this.spriteCache.keys().next().value;
+            if (firstKey !== undefined) this.spriteCache.delete(firstKey);
+        }
         this.spriteCache.set(key, sprite);
         return sprite;
     }

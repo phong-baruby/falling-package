@@ -19,13 +19,6 @@ export function randomFromRange(range: RangeValue): number {
 }
 
 /**
- * Generate a random integer between min and max (inclusive)
- */
-export function randomInt(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-/**
  * Pick a random item from an array
  */
 export function randomPick<T>(array: T[]): T {
@@ -47,27 +40,6 @@ export function weightedRandomPick<T extends { weight?: number }>(items: T[]): T
     }
 
     return items[items.length - 1];
-}
-
-/**
- * Clamp a value between min and max
- */
-export function clamp(value: number, min: number, max: number): number {
-    return Math.min(Math.max(value, min), max);
-}
-
-/**
- * Linear interpolation
- */
-export function lerp(start: number, end: number, t: number): number {
-    return start + (end - start) * t;
-}
-
-/**
- * Convert degrees to radians
- */
-export function degToRad(degrees: number): number {
-    return degrees * (Math.PI / 180);
 }
 
 /**
@@ -111,18 +83,6 @@ export function resolveContainer(container: HTMLElement | string | undefined): H
     }
 
     return container;
-}
-
-/**
- * Create a style string from object
- */
-export function styleToString(styles: Record<string, string | number>): string {
-    return Object.entries(styles)
-        .map(([key, value]) => {
-            const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-            return `${cssKey}: ${value}`;
-        })
-        .join('; ');
 }
 
 /**

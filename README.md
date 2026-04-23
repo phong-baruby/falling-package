@@ -1,38 +1,57 @@
-# 🎉 Falling Animation
+# 🎉 falling-animation
 
-A lightweight, customizable falling objects animation library for the web. Create beautiful falling effects like snow, leaves, confetti, and realistic fireworks!
+A lightweight, customizable falling objects animation library for the web. Create beautiful falling effects like snow, leaves, confetti, and realistic fireworks — with **zero dependencies** and a Canvas-based renderer that doesn't touch your DOM.
 
 [![npm version](https://img.shields.io/npm/v/falling-animation.svg)](https://www.npmjs.com/package/falling-animation)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/falling-animation)](https://bundlephobia.com/package/falling-animation)
-[![license](https://img.shields.io/npm/l/falling-animation.svg)](https://github.com/phongdh/falling-animation/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/falling-animation.svg)](https://github.com/phong-baruby/falling-package/blob/main/LICENSE)
 
 ## ✨ Features
 
-- 🪶 **Lightweight** - No dependencies, < 15KB gzipped
-- 🎨 **Customizable** - Full control over speed, size, animation, and more
-- 🎭 **8 Animation Types** - fall, swing, rotate, flutter, spiral, tumble, zigzag, float
-- 🎆 **Fireworks** - Realistic rockets shooting up and exploding into colorful particles
-- 📱 **Responsive** - Automatically adapts to container size
-- 🖼️ **Multiple Object Types** - Emojis, images, or custom HTML
-- ⚡ **Performant** - Uses requestAnimationFrame and CSS transforms
-- 📦 **TypeScript** - Full type definitions included
-- 🌐 **Universal** - Works with ESM, CJS, and UMD
+- 🪶 **Lightweight** — Zero dependencies, ~21KB minified UMD
+- 🎨 **Customizable** — Full control over speed, size, animation, wind, and more
+- 🎭 **8 Animation Types** — fall, swing, rotate, flutter, spiral, tumble, zigzag, float
+- 🎆 **Fireworks** — Rockets + 10 explosion patterns (heart, star, willow, waterfall…)
+- 📱 **Responsive** — Automatically adapts to container size changes
+- 🖼️ **Multiple Object Types** — Emojis and images
+- ⚡ **Performant** — Canvas-based rendering with `requestAnimationFrame`; auto-pauses when tab is hidden
+- 📦 **TypeScript** — Full type definitions included
+- 🌐 **Universal** — Works with ESM, CJS, and UMD (Vanilla / React / Next.js / Vue / Nuxt)
+
+---
 
 ## 📦 Installation
 
 ```bash
 npm install falling-animation
+# or
+yarn add falling-animation
+# or
+pnpm add falling-animation
 ```
 
-Or use via CDN:
+### CDN (no build step)
 
 ```html
 <script src="https://unpkg.com/falling-animation/dist/falling-animation.umd.min.js"></script>
 ```
 
+---
+
+## ⚠️ SSR Notice
+
+This library **requires a browser environment** (it uses `window`, `document`, and `<canvas>`). It will throw if instantiated during server-side rendering.
+
+- **Next.js / Nuxt** — always initialize inside `useEffect` / `onMounted`, or use dynamic import with `ssr: false`
+- **Vite SSR / Astro / Remix** — guard with `typeof window !== 'undefined'`
+
+See [Framework Examples](#-framework-examples) below for copy-paste patterns.
+
+---
+
 ## 🚀 Quick Start
 
-### ES Modules
+### Vanilla JS / ES Modules
 
 ```javascript
 import { FallingAnimation } from 'falling-animation';
@@ -43,6 +62,9 @@ const falling = new FallingAnimation({
     { type: 'emoji', content: '🌸' }
   ]
 });
+
+// Clean up when done
+// falling.destroy();
 ```
 
 ### CDN / UMD
@@ -50,52 +72,248 @@ const falling = new FallingAnimation({
 ```html
 <script src="https://unpkg.com/falling-animation/dist/falling-animation.umd.min.js"></script>
 <script>
-  const falling = new FallingAnimation.FallingAnimation({
+  const { FallingAnimation, Fireworks } = FallingAnimationLib;
+
+  new FallingAnimation({
     objects: [{ type: 'emoji', content: '🍁' }]
   });
 </script>
 ```
 
+---
+
+## 🎨 Framework Examples
+
+### React
+
+```tsx
+import { useEffect, useRef } from 'react';
+import { FallingAnimation } from 'falling-animation';
+
+export default function FallingEffect() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+
+    const falling = new FallingAnimation({
+      container: ref.current,
+      objects: [{ type: 'emoji', content: '🌟' }],
+      animation: 'float',
+      maxParticles: 30,
+    });
+
+    return () => falling.destroy();
+  }, []);
+
+  return <div ref={ref} style={{ position: 'relative', height: 300 }} />;
+}
+```
+
+### React — full-page overlay (fixed position)
+
+```tsx
+import { useEffect } from 'react';
+import { FallingAnimation } from 'falling-animation';
+
+export default function PageSnow() {
+  useEffect(() => {
+    const falling = new FallingAnimation({
+      // omit container → defaults to document.body, canvas is fixed-position
+      objects: [{ type: 'emoji', content: '❄️' }],
+      animation: 'float',
+      zIndex: 9999,
+    });
+    return () => falling.destroy();
+  }, []);
+
+  return null; // renders nothing itself
+}
+```
+
+### Next.js App Router (`'use client'`)
+
+```tsx
+'use client';
+
+import { useEffect, useRef } from 'react';
+
+export default function FallingEffect() {
+  const instanceRef = useRef<{ destroy: () => void } | null>(null);
+
+  useEffect(() => {
+    // Dynamic import keeps the library out of the server bundle
+    import('falling-animation').then(({ FallingAnimation }) => {
+      instanceRef.current = new FallingAnimation({
+        objects: [
+          { type: 'emoji', content: '✨', weight: 3 },
+          { type: 'emoji', content: '⭐', weight: 1 },
+        ],
+        animation: ['float', 'swing'],
+        speed: { min: 0.5, max: 1.5 },
+        maxParticles: 25,
+        opacity: { min: 0.3, max: 0.7 },
+        zIndex: 5,
+      });
+    });
+
+    return () => {
+      instanceRef.current?.destroy();
+      instanceRef.current = null;
+    };
+  }, []);
+
+  return null;
+}
+```
+
+> **Tip:** Add `transpilePackages: ['falling-animation']` to `next.config.ts` if you get a
+> `"Can't resolve 'falling-animation'"` error with Turbopack.
+>
+> ```ts
+> // next.config.ts
+> const nextConfig: NextConfig = {
+>   transpilePackages: ['falling-animation'],
+> };
+> ```
+
+### Next.js Pages Router
+
+```tsx
+import dynamic from 'next/dynamic';
+
+// Import as client-only — never runs on the server
+const FallingEffect = dynamic(() => import('@/components/FallingEffect'), { ssr: false });
+
+export default function HomePage() {
+  return (
+    <>
+      <FallingEffect />
+      {/* rest of page */}
+    </>
+  );
+}
+```
+
+### Vue 3
+
+```vue
+<script setup lang="ts">
+import { onMounted, onUnmounted, ref } from 'vue';
+import type { FallingAnimation as FallingAnimationType } from 'falling-animation';
+
+const containerRef = ref<HTMLDivElement | null>(null);
+let instance: FallingAnimationType | null = null;
+
+onMounted(async () => {
+  const { FallingAnimation } = await import('falling-animation');
+  if (!containerRef.value) return;
+
+  instance = new FallingAnimation({
+    container: containerRef.value,
+    objects: [{ type: 'emoji', content: '🍁' }],
+    animation: 'swing',
+    wind: 0.2,
+  });
+});
+
+onUnmounted(() => {
+  instance?.destroy();
+  instance = null;
+});
+</script>
+
+<template>
+  <div ref="containerRef" style="position: relative; height: 300px" />
+</template>
+```
+
+### Nuxt 3
+
+```vue
+<script setup lang="ts">
+// plugins/falling-animation.client.ts — suffix .client ensures server-skip
+import { FallingAnimation } from 'falling-animation';
+
+const el = ref<HTMLDivElement | null>(null);
+let instance: FallingAnimation | null = null;
+
+onMounted(() => {
+  if (!el.value) return;
+  instance = new FallingAnimation({
+    container: el.value,
+    objects: [{ type: 'emoji', content: '🎉' }],
+  });
+});
+
+onUnmounted(() => instance?.destroy());
+</script>
+
+<template>
+  <div ref="el" style="position: relative; min-height: 200px" />
+</template>
+```
+
+### Vanilla HTML
+
+```html
+<!DOCTYPE html>
+<html>
+<body>
+  <script type="module">
+    import { FallingAnimation, Fireworks } from 'https://unpkg.com/falling-animation/dist/falling-animation.esm.js';
+
+    new FallingAnimation({
+      objects: [{ type: 'emoji', content: '❄️' }],
+      animation: 'float'
+    });
+  </script>
+</body>
+</html>
+```
+
+---
+
 ## 📖 API Reference
 
-### Constructor Options
+### `FallingAnimation` Options
 
 ```typescript
 interface FallingAnimationOptions {
-  // Required: Objects to fall
+  /** Required: objects to fall */
   objects: FallingObject[];
-  
-  // Container element or selector (default: document.body)
+
+  /** Container element or CSS selector (default: document.body → fixed canvas) */
   container?: HTMLElement | string;
-  
-  // Falling speed in px/frame (default: { min: 2, max: 5 })
+
+  /** Falling speed — intuitive units, not px/frame (default: { min: 2, max: 5 }) */
   speed?: { min: number; max: number };
-  
-  // Objects spawned per second (default: 3)
+
+  /** Objects spawned per second (default: 3) */
   spawnRate?: number;
-  
-  // Maximum concurrent particles (default: 50)
+
+  /** Max concurrent particles (default: 50) */
   maxParticles?: number;
-  
-  // Animation type(s) (default: 'fall')
+
+  /** Animation type(s) (default: 'fall') */
   animation?: AnimationType | AnimationType[];
-  
-  // Object size in px (default: { min: 20, max: 40 })
+
+  /** Object size in px (default: { min: 20, max: 40 }) */
   size?: { min: number; max: number };
-  
-  // Object opacity (default: { min: 0.6, max: 1 })
+
+  /** Opacity range 0–1 (default: { min: 0.6, max: 1 }) */
   opacity?: { min: number; max: number };
-  
-  // Wind effect from -1 to 1 (default: 0)
+
+  /** Wind drift -1 to 1 (default: 0) */
   wind?: number;
-  
-  // Auto start animation (default: true)
+
+  /** Auto-start on construction (default: true) */
   autoStart?: boolean;
-  
-  // Z-index for container (default: 9999)
+
+  /** Canvas z-index (default: 9999) */
   zIndex?: number;
-  
-  // Enable responsive behavior (default: true)
+
+  /** Auto-resize canvas on window resize (default: true) */
   responsive?: boolean;
 }
 ```
@@ -106,14 +324,12 @@ interface FallingAnimationOptions {
 // Emoji
 { type: 'emoji', content: '🍁' }
 
-// Image
-{ type: 'image', src: '/path/to/image.png' }
+// Remote or local image
+{ type: 'image', src: '/images/snowflake.png' }
 
-// Custom HTML
-{ type: 'html', content: '<div class="custom">★</div>' }
-
-// With weight for random selection
+// Weighted random selection (higher = more frequent)
 { type: 'emoji', content: '❄️', weight: 3 }
+{ type: 'emoji', content: '🌸', weight: 1 }
 ```
 
 ### Animation Types
@@ -127,45 +343,136 @@ interface FallingAnimationOptions {
 | `spiral` | Spiraling down pattern |
 | `tumble` | Chaotic tumbling motion |
 | `zigzag` | Zigzag falling pattern |
-| `float` | Slow floating descent |
+| `float` | Slow, gentle floating descent |
 
-### Methods
+Pass a single string or an array — each particle picks randomly from the array:
 
 ```javascript
-// Control methods
-falling.start();    // Start the animation
-falling.stop();     // Stop and clear all particles
-falling.pause();    // Pause animation (keeps particles)
-falling.resume();   // Resume paused animation
-falling.destroy();  // Clean up and remove from DOM
-
-// Update options dynamically
-falling.setOptions({
-  speed: { min: 5, max: 10 },
-  spawnRate: 5,
-  animation: 'tumble'
-});
-
-// Get state
-falling.getParticleCount();  // Current particle count
-falling.getIsRunning();      // Is animation running?
-falling.getIsPaused();       // Is animation paused?
+animation: ['swing', 'flutter', 'float']
 ```
 
-## 🎨 Examples
+### `FallingAnimation` Methods
 
-### Snow Effect
+```javascript
+falling.start();          // Start animation
+falling.stop();           // Stop and clear all particles
+falling.pause();          // Pause (particles stay in place)
+falling.resume();         // Resume from pause
+falling.destroy();        // Remove canvas, clean up all listeners
+
+falling.setOptions({ speed: { min: 5, max: 10 }, wind: 0.5 });
+
+falling.getParticleCount(); // → number
+falling.getIsRunning();     // → boolean
+falling.getIsPaused();      // → boolean
+```
+
+---
+
+### `Fireworks` Options
+
+```typescript
+interface FireworksOptions {
+  /** Container element or CSS selector (default: document.body) */
+  container?: HTMLElement | string;
+
+  /** Particle colors (default: 10 festive colors) */
+  colors?: string[];
+
+  /** Rockets launched per second (default: 0.5) */
+  launchRate?: number;
+
+  /** Particles per explosion (default: 50) */
+  particlesPerExplosion?: number;
+
+  /** Max concurrent particles — prevents frame drops (default: 500) */
+  maxParticles?: number;
+
+  /** Rocket speed (default: { min: 7, max: 12 }) */
+  rocketSpeed?: { min: number; max: number };
+
+  /** Explosion spread speed (default: { min: 1, max: 6 }) */
+  explosionSpeed?: { min: number; max: number };
+
+  /** Particle size in px (default: { min: 2, max: 6 }) */
+  particleSize?: { min: number; max: number };
+
+  /** Particle lifetime in ms (default: { min: 1000, max: 2000 }) */
+  particleLifetime?: { min: number; max: number };
+
+  /** Gravity pull (default: 0.1) */
+  gravity?: number;
+
+  /** Trail/fade effect between frames (default: true) */
+  trail?: boolean;
+
+  /** Explosion pattern — single or array for random mix (default: 'circular') */
+  explosionPattern?: ExplosionPattern | ExplosionPattern[];
+
+  /** Auto-start on construction (default: true) */
+  autoStart?: boolean;
+
+  /** Canvas z-index (default: 9999) */
+  zIndex?: number;
+}
+```
+
+### Explosion Patterns
+
+| Pattern | Description |
+|---------|-------------|
+| `circular` | Standard even circular burst |
+| `ring` | Thin ring / donut shape |
+| `heart` | ❤️ Heart shape |
+| `star` | ⭐ 5-point star beams |
+| `willow` | 🌳 Heavy-gravity trailing willow |
+| `palm` | 🌴 Upward-biased palm tree |
+| `chrysanthemum` | 🌼 Dense multi-layer spherical burst |
+| `embers` | 🔥 Tiny slow-drifting micro-particles |
+| `double` | 💥 2-stage explosion (particles explode again!) |
+| `waterfall` | 💧 Gentle rise then heavy rain fall |
+| `random` | Picks a random pattern for each explosion |
+
+Pass an array to mix patterns:
+
+```javascript
+explosionPattern: ['double', 'heart', 'star']
+```
+
+### `Fireworks` Methods
+
+```javascript
+fw.start();       // Start continuous launch loop
+fw.stop();        // Stop launching (clears pending bursts)
+fw.clear();       // Remove all active particles
+fw.destroy();     // Full cleanup, removes canvas
+
+fw.launch();      // Launch one rocket manually
+fw.burst(5);      // Launch 5 rockets staggered ~100ms apart
+
+fw.setOptions({ launchRate: 2, explosionPattern: 'heart' });
+
+fw.getParticleCount(); // → number
+fw.getIsRunning();     // → boolean
+```
+
+---
+
+## 🎨 Presets
+
+### Snow
 
 ```javascript
 new FallingAnimation({
   objects: [
-    { type: 'emoji', content: '❄️' },
-    { type: 'emoji', content: '❅' },
-    { type: 'emoji', content: '❆' }
+    { type: 'emoji', content: '❄️', weight: 3 },
+    { type: 'emoji', content: '❅',  weight: 2 },
+    { type: 'emoji', content: '❆',  weight: 1 },
   ],
   animation: 'float',
-  speed: { min: 1, max: 3 },
-  size: { min: 15, max: 35 }
+  speed: { min: 0.5, max: 2 },
+  size: { min: 15, max: 35 },
+  wind: 0.05,
 });
 ```
 
@@ -176,11 +483,11 @@ new FallingAnimation({
   objects: [
     { type: 'emoji', content: '🍁', weight: 3 },
     { type: 'emoji', content: '🍂', weight: 2 },
-    { type: 'emoji', content: '🍃', weight: 1 }
+    { type: 'emoji', content: '🍃', weight: 1 },
   ],
   animation: 'swing',
   speed: { min: 2, max: 4 },
-  wind: 0.3
+  wind: 0.3,
 });
 ```
 
@@ -191,23 +498,12 @@ new FallingAnimation({
   objects: [
     { type: 'emoji', content: '🎊' },
     { type: 'emoji', content: '🎉' },
-    { type: 'emoji', content: '✨' }
+    { type: 'emoji', content: '✨' },
   ],
   animation: ['tumble', 'rotate', 'zigzag'],
   speed: { min: 3, max: 6 },
   spawnRate: 10,
-  maxParticles: 100
-});
-```
-
-### Bounded Container
-
-```javascript
-new FallingAnimation({
-  container: '#my-container',  // or document.getElementById('my-container')
-  objects: [{ type: 'emoji', content: '⭐' }],
-  animation: 'spiral',
-  zIndex: 100
+  maxParticles: 100,
 });
 ```
 
@@ -217,224 +513,63 @@ new FallingAnimation({
 new FallingAnimation({
   objects: [
     { type: 'image', src: '/images/snowflake.png' },
-    { type: 'image', src: '/images/star.png' }
+    { type: 'image', src: '/images/star.png' },
   ],
-  size: { min: 30, max: 50 }
+  size: { min: 30, max: 50 },
 });
 ```
 
-## 🔧 TypeScript
-
-Full TypeScript support with exported types:
-
-```typescript
-// For falling effects only
-import { FallingAnimation, FallingAnimationOptions } from 'falling-animation';
-
-const falling = new FallingAnimation({
-  objects: [{ type: 'emoji', content: '🌟' }],
-  animation: 'rotate'
-});
-```
-
-```typescript
-// For fireworks only
-import { Fireworks, FireworksOptions } from 'falling-animation';
-
-const fw = new Fireworks({
-  launchRate: 2,
-  particlesPerExplosion: 60
-});
-```
-
-```typescript
-// Both together
-import { FallingAnimation, Fireworks } from 'falling-animation';
-```
-
----
-
-## 🎆 Fireworks
-
-Create realistic firework effects with rockets shooting up and exploding into colorful particles!
-
-### Quick Start
+### Bounded Container
 
 ```javascript
-import { Fireworks } from 'falling-animation';
-
-const fireworks = new Fireworks();
-```
-
-### Fireworks Options
-
-```typescript
-interface FireworksOptions {
-  // Container element or selector (default: document.body)
-  container?: HTMLElement | string;
-  
-  // Colors for fireworks (default: 10 festive colors)
-  colors?: string[];
-  
-  // Rockets per second (default: 0.5)
-  launchRate?: number;
-  
-  // Particles per explosion (default: 50)
-  particlesPerExplosion?: number;
-  
-  // Rocket speed range (default: { min: 7, max: 12 })
-  rocketSpeed?: { min: number; max: number };
-  
-  // Explosion particle speed (default: { min: 1, max: 6 })
-  explosionSpeed?: { min: number; max: number };
-  
-  // Particle size in px (default: { min: 2, max: 6 })
-  particleSize?: { min: number; max: number };
-  
-  // Particle lifetime in ms (default: { min: 1000, max: 2000 })
-  particleLifetime?: { min: number; max: number };
-  
-  // Gravity strength (default: 0.1)
-  gravity?: number;
-  
-  // Auto start (default: true)
-  autoStart?: boolean;
-  
-  // Explosion pattern (default: 'random')
-  // Values: 'random' | 'circular' | 'double' | 'embers' | 'heart' | 'star' | 'ring' | 'palm' | 'willow' | 'chrysanthemum'
-  // Can also be an array: ['double', 'heart']
-  explosionPattern?: ExplosionPattern | ExplosionPattern[];
-
-  // Z-index (default: 9999)
-  zIndex?: number;
-}
-```
-
-### Fireworks Methods
-
-```javascript
-const fw = new Fireworks();
-
-// Control methods
-fw.start();     // Start continuous fireworks
-fw.stop();      // Stop launching new rockets
-fw.clear();     // Clear all particles
-fw.destroy();   // Clean up completely
-
-// Manual launch
-fw.launch();    // Launch single firework
-fw.burst(5);    // Launch 5 fireworks at once
-
-// Update options dynamically
-fw.setOptions({
-  launchRate: 2,
-  particlesPerExplosion: 80
+new FallingAnimation({
+  container: '#hero-section', // or document.getElementById('hero')
+  objects: [{ type: 'emoji', content: '⭐' }],
+  animation: 'spiral',
+  zIndex: 100,
 });
-
-// Get state
-fw.getParticleCount();
-fw.getIsRunning();
 ```
 
-### Fireworks Examples
-
-### Explosion Patterns
-
-You can choose from 9 different explosion patterns or use a random mix!
-
-- `random`: Randomly selects a pattern for each explosion (default)
-- `circular`: Standard circular explosion
-- `double`: **Spectacular 2-stage explosion** (particles explode again!)
-- `waterfall`: **Waterfall effect** (gentle up, heavy rain down)
-- `embers`: Slow-falling, micro-particles (Tàn Lửa)
-- `heart`: ❤️ Heart shape
-- `star`: ⭐ Star shape
-- `ring`: 💍 Ring shape
-- `palm`: 🌴 Palm tree effect
-- `willow`: 🌳 Trailing willow effect
-- `chrysanthemum`: 🌼 Dense spherical burst
-
-### ✨ Recommended Presets
-
-Here are some beautiful configurations to get you started:
-
-#### 1. The Grand Finale (Spectacular Mix)
-Perfect for big celebrations. Uses double explosions and a mix of random patterns.
+### Grand Finale Fireworks
 
 ```javascript
-const fireworks = new Fireworks({
+new Fireworks({
   launchRate: 2,
-  particlesPerExplosion: 50,
-  explosionPattern: ['double', 'random'], // Mix of single and double explosions
+  particlesPerExplosion: 60,
+  explosionPattern: ['double', 'random'],
   rocketSpeed: { min: 12, max: 18 },
-  explosionSpeed: { min: 3, max: 9 }
+  explosionSpeed: { min: 3, max: 9 },
 });
 ```
 
-#### 2. Romantic Hearts
-A gentle stream of heart-shaped fireworks, great for weddings or Valentine's.
+### Romantic Hearts
 
 ```javascript
 new Fireworks({
   launchRate: 1,
   particlesPerExplosion: 40,
   explosionPattern: 'heart',
-  colors: ['#ff0000', '#ff69b4', '#ffffff'], // Red, Pink, White
-  gravity: 0.05, // Slower fall
-  rocketSpeed: { min: 10, max: 12 }
+  colors: ['#ff0000', '#ff69b4', '#ffffff'],
+  gravity: 0.05,
 });
 ```
 
-#### 3. Gentle Embers (Tàn Lửa)
-Soft, floating micro-particles that drift slowly. Very atmospheric.
+### Manual Trigger (button click)
 
 ```javascript
-new Fireworks({
-  launchRate: 3,
-  explosionPattern: 'embers',
-  rocketSpeed: { min: 8, max: 12 },
-  particleLifetime: { min: 2000, max: 4000 },
-  gravity: 0.05
+const fw = new Fireworks({ autoStart: false });
+
+document.querySelector('#celebrate').addEventListener('click', () => {
+  fw.burst(5);
 });
-```
-
-#### 4. New Year Countdown (Intense)
-High density, fast-paced action!
-
-```javascript
-const fw = new Fireworks({
-  launchRate: 4,               // Fast launch
-  particlesPerExplosion: 60,   // Dense explosions
-  explosionPattern: 'random',
-  explosionSpeed: { min: 5, max: 10 }
-});
-
-// Launch a massive burst manually when the timer hits zero!
-// fw.burst(15);
-```
-
-#### 5. Single Shot (Manual Control)
-Want to trigger fireworks manually (e.g., on button click)?
-
-```javascript
-const fw = new Fireworks({
-  autoStart: false  // 1. Disable auto-start
-});
-
-// 2. Trigger manually whenever you want (e.g. onClick)
-fw.launch(); // Launches 1 rocket
-// or
-fw.burst(5); // Launches 5 rockets at once
 ```
 
 ---
 
 ## 📄 License
 
-MIT © [phongdh](https://github.com/phongdh)
+MIT © [phongdh](https://github.com/phong-baruby/falling-package)
 
 ## 🙏 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-> I'm currently figuring out how to implement the **Waterfall** or **Weeping Willow** effect properly. If you have experience with these physics/visuals, I'd love your help! Please feel free to open a Pull Request.

@@ -7,6 +7,7 @@ import {
     FallingObject,
     FallingObjectType,
     AnimationType,
+    AnimationFunction,
     ResolvedOptions
 } from './types';
 import {
@@ -45,6 +46,7 @@ export class Particle implements ParticleState {
 
     private containerWidth: number;
     private containerHeight: number;
+    private animationFn: AnimationFunction;
 
     constructor(options: ResolvedOptions, containerWidth: number, containerHeight: number) {
         this.id = generateId();
@@ -79,8 +81,9 @@ export class Particle implements ParticleState {
         this.rotation = randomRange(0, 360);
         this.rotationSpeed = randomRange(-3, 3);
 
-        // Pick animation
+        // Pick animation and cache the function to avoid per-frame lookup
         this.animation = randomPick(options.animation);
+        this.animationFn = getAnimation(this.animation);
 
         // Initialize animation-specific data
         this.initAnimationData();
@@ -102,10 +105,7 @@ export class Particle implements ParticleState {
      */
     update(deltaTime: number, elapsed: number): void {
         this.age += deltaTime;
-
-        // Apply animation
-        const animationFn = getAnimation(this.animation);
-        animationFn(this, deltaTime, elapsed);
+        this.animationFn(this, deltaTime, elapsed);
     }
 
     /**

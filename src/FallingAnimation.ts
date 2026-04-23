@@ -36,6 +36,8 @@ export class FallingAnimation {
     private startTime = 0;
     private lastFrameTime = 0;
     private resizeHandler: (() => void) | null = null;
+    private visibilityHandler: (() => void) | null = null;
+    private imagesReady = false;
 
     constructor(options: FallingAnimationOptions) {
         // Validate required options
@@ -49,13 +51,28 @@ export class FallingAnimation {
         // Create canvas renderer
         this.renderer = new CanvasRenderer(this.options.container, this.options.zIndex);
 
-        // Preload images if any
-        this.preloadImages();
+        // Preload images; mark ready when done (non-image configs are immediately ready)
+        const hasImages = this.options.objects.some(o => o.type === 'image');
+        if (hasImages) {
+            this.preloadImages().then(() => { this.imagesReady = true; });
+        } else {
+            this.imagesReady = true;
+        }
 
         // Setup resize handler if responsive
         if (this.options.responsive) {
             this.setupResizeHandler();
         }
+
+        // Pause when tab is hidden to save CPU/GPU
+        this.visibilityHandler = () => {
+            if (document.hidden) {
+                if (this.isRunning) this.pause();
+            } else {
+                if (this.isPaused) this.resume();
+            }
+        };
+        document.addEventListener('visibilitychange', this.visibilityHandler);
 
         // Auto start if enabled
         if (this.options.autoStart) {
@@ -148,16 +165,6 @@ export class FallingAnimation {
     }
 
     /**
-     * Remove a particle
-     */
-    private removeParticle(particle: Particle): void {
-        const index = this.particles.indexOf(particle);
-        if (index > -1) {
-            this.particles.splice(index, 1);
-        }
-    }
-
-    /**
      * Main animation loop
      */
     private animate = (currentTime: number): void => {
@@ -180,21 +187,19 @@ export class FallingAnimation {
             this.lastSpawnTime = currentTime;
         }
 
-        // Update particles
-        const particlesToRemove: Particle[] = [];
-
+        // Update particles and collect out-of-bounds in one pass
+        let hasRemoved = false;
         for (const particle of this.particles) {
             particle.update(deltaTime, elapsed);
-
-            if (particle.isOutOfBounds()) {
-                particlesToRemove.push(particle);
-            }
+            if (particle.isOutOfBounds()) hasRemoved = true;
         }
 
-        // Remove out-of-bounds particles
-        particlesToRemove.forEach(p => this.removeParticle(p));
+        // Remove out-of-bounds particles in a single filter pass (O(n))
+        if (hasRemoved) {
+            this.particles = this.particles.filter(p => !p.isOutOfBounds());
+        }
 
-        // Clear and render all particles
+        // Clear and render all particles — reuse inline to avoid per-frame allocation
         this.renderer.clear();
 
         const renderData: RenderParticle[] = this.particles.map(p => ({
@@ -347,6 +352,12 @@ export class FallingAnimation {
         if (this.resizeHandler) {
             window.removeEventListener('resize', this.resizeHandler);
             this.resizeHandler = null;
+        }
+
+        // Remove visibility handler
+        if (this.visibilityHandler) {
+            document.removeEventListener('visibilitychange', this.visibilityHandler);
+            this.visibilityHandler = null;
         }
     }
 }
